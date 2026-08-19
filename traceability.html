@@ -36,6 +36,37 @@ button:hover{border-color:var(--ac)}
 .fg2{font-size:9px;color:var(--tx2);margin-top:3px}
 .ar{display:flex;align-items:center;color:var(--line);font-size:16px}
 
+/* ── 화이트보드 1~4단계 시퀀스 ─────────────── */
+.seq-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}
+.seq-head h2{font-size:14px;font-weight:700}
+.seq-head .seq-sub{font-size:11px;color:var(--tx2)}
+.seq-toggle{font-size:11px;color:var(--ac);cursor:pointer;background:none;border:none;padding:2px}
+.stageBoxes{display:flex;flex-direction:column;gap:10px;margin-bottom:18px}
+.sbox{border:1.5px solid;border-radius:12px;background:var(--card);overflow:hidden}
+.sbox.red{border-color:#e0605f}
+.sbox.yel{border-color:#e0b23f}
+.sbox-head{display:flex;align-items:center;gap:12px;padding:13px 16px;cursor:pointer;user-select:none}
+.sbox-num{width:32px;height:32px;min-width:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:#fff}
+.sbox.red .sbox-num{background:#e0605f}
+.sbox.yel .sbox-num{background:#e0b23f;color:#2a1c04}
+.sbox-titlewrap{flex:1;min-width:0}
+.sbox-title{font-size:14px;font-weight:700}
+.sbox-sub{font-size:11px;color:var(--tx2);margin-top:2px}
+.sbox-summary{font-size:11px;color:var(--tx2);font-family:monospace;white-space:nowrap}
+.sbox-chev{transition:transform .2s;color:var(--tx2);font-size:12px}
+.sbox.open .sbox-chev{transform:rotate(180deg)}
+.sbox-body{display:none;padding:2px 16px 14px 62px}
+.sbox.open .sbox-body{display:block}
+.step-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line)}
+.step-row:first-child{border-top:none}
+.step-dot{width:8px;height:8px;min-width:8px;border-radius:50%;background:var(--line)}
+.step-dot.done{background:var(--ok)}
+.step-dot.live{background:var(--wn)}
+.step-dot.ng{background:var(--ng)}
+.step-name{flex:1;font-size:12.5px}
+.step-meta{font-size:10.5px;color:var(--tx2);font-family:monospace;text-align:right;white-space:nowrap}
+.arrow-down{text-align:center;color:var(--line);font-size:14px;margin:-2px 0}
+
 .gr{display:grid;grid-template-columns:1.4fr 1fr;gap:13px;margin-bottom:16px}
 @media(max-width:900px){.gr{grid-template-columns:1fr}}
 .c{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:14px}
@@ -95,10 +126,14 @@ canvas{max-height:250px}
 
 <div class="kpi" id="kpi"></div>
 
-<div class="flowcard">
-  <div class="ct"><span>발주 → 출하 파이프라인</span><em>실선 = 시스템 자동 연동 구간</em></div>
-  <div class="flow" id="flow"></div>
+<div class="seq-head">
+  <div>
+    <h2>SQ 심사 대응 · 전체 프로세스 (화이트보드 1~4단계)</h2>
+    <div class="seq-sub">고객사 발주부터 출하까지 — 그리신 순서 그대로, 각 단계를 눌러 실제 데이터를 확인하세요</div>
+  </div>
+  <button class="seq-toggle" id="btnExpandAll">전체 펼치기</button>
 </div>
+<div class="stageBoxes" id="stageBoxes"></div>
 
 <div class="tabs">
   <div class="tab on" data-p="p1">계획 vs 실적</div>
@@ -160,6 +195,103 @@ const STAGE_SYS = {
   '③FAC2_STORAGE':'S3','PROCESS':'S3','④PACKING':'S3','SHIP_OUT':'S4'
 };
 const STAGE_ORDER = ['①FAC1_STORAGE','②DELIVERY_OUT','②DELIVERY_IN','IQC_Y','IQC_N','③FAC2_STORAGE','PROCESS','④PACKING','SHIP_OUT'];
+
+// ── 화이트보드 1~4단계 박스 정의 (그리신 그대로) ──────────────
+const BOXES = [
+  { id:'b1', num:1, color:'red', title:'2공장 발주계획', sub:'고객사 발주 → 발주수량통보 (FAC2→FAC1)', detailUrl:'fac2_planning.html',
+    steps:[
+      { name:'고객사 발주', src:'po' },
+      { name:'2공장 접수 (PO 승인)', src:'po_approve' },
+      { name:'2공장 가용자원분석 (4M)', src:'static' },
+      { name:'2공장 계획수립', src:'static' },
+      { name:'발주수량통보 (FAC2→FAC1)', src:'static' },
+    ]},
+  { id:'b2', num:2, color:'red', title:'1공장 생산계획', sub:'발주접수(FAC1) → 1공장 주조·Trimming',
+    steps:[
+      { name:'발주 접수 (FAC1)', src:'static' },
+      { name:'1공장 가용자원분석 (4M) · 추적범위 기간/로징 고려', src:'static' },
+      { name:'1공장 계획수립', src:'static' },
+      { name:'1공장 주조·Trimming (육안검사 / 품질부서 순회검사+X-ray,CMM)', src:'static' },
+    ]},
+  { id:'b3', num:3, color:'red', title:'FAC1 → FAC2 이동', sub:'① 재공품 Storage → 배송준비 → Delivery',
+    steps:[
+      { name:'① 재공품 Storage (FAC1) · 안전재고 정보관리', src:'stage', stageKey:'①FAC1_STORAGE' },
+      { name:'배송준비 (품질부서 출하검사)', src:'stage', stageKey:'②DELIVERY_OUT' },
+      { name:'② Delivery (FAC1→FAC2) · 배송/하차', src:'stage', stageKey:'②DELIVERY_IN' },
+    ]},
+  { id:'b4', num:4, color:'yel', title:'FAC2 입고 ~ 출하', sub:'입고검사(Y/N) → 공정작업 → Packing → 출하',
+    steps:[
+      { name:'2공장 입고검사 (FAC1 QC = FAC2 IQC) · Y: OK / N: return', src:'iqc' },
+      { name:'③ 재공품 Storage (FAC2)', src:'stage', stageKey:'③FAC2_STORAGE' },
+      { name:'공정작업 (사상→쇼트→MCT→열처리→함침)', src:'stage', stageKey:'PROCESS' },
+      { name:'④ Packing', src:'stage', stageKey:'④PACKING' },
+      { name:'출하준비 (품질부서 출하검사)', src:'stage', stageKey:'④PACKING' },
+      { name:'출하', src:'stage', stageKey:'SHIP_OUT' },
+    ]},
+];
+let boxOpenState = { b1:false, b2:false, b3:true, b4:true };
+
+function renderBoxes(lots){
+  const wrap = document.getElementById('stageBoxes');
+  wrap.innerHTML = BOXES.map(box => {
+    const stepsHTML = box.steps.map(st => {
+      let dotClass = 'live', meta = '';
+      if(st.src === 'po'){
+        dotClass = 'done'; meta = D.pos.length + '건 접수';
+      } else if(st.src === 'po_approve'){
+        const confirmed = D.pos.filter(p=>p.status==='확정').length;
+        dotClass = confirmed>0 ? 'done' : 'live';
+        meta = `승인 ${confirmed}/${D.pos.length}건`;
+      } else if(st.src === 'static'){
+        dotClass = 'done'; meta = '기준 수립됨';
+      } else if(st.src === 'iqc'){
+        const yCnt = lots.filter(l=>l.hist.some(h=>h[1]==='IQC_Y')).length;
+        const nCnt = lots.filter(l=>l.hist.some(h=>h[1]==='IQC_N')).length;
+        dotClass = nCnt>0 ? 'ng' : (yCnt>0?'done':'live');
+        meta = `Y ${yCnt}건 · N ${nCnt}건`;
+      } else if(st.src === 'stage'){
+        const idx = STAGE_ORDER.indexOf(st.stageKey);
+        const reached = lots.filter(l => l.hist.some(h=>h[1]===st.stageKey));
+        dotClass = reached.length>0 ? 'done' : 'live';
+        const qty = reached.reduce((s,l)=>s+l.qty,0);
+        meta = `${reached.length} Lot · ${fmt(qty)} EA`;
+      }
+      return `<div class="step-row"><div class="step-dot ${dotClass}"></div><div class="step-name">${st.name}</div><div class="step-meta">${meta}</div></div>`;
+    }).join('');
+
+    const doneSteps = box.steps.filter((st,i) => {
+      if(st.src==='iqc') return lots.some(l=>l.hist.some(h=>h[1]==='IQC_Y'||h[1]==='IQC_N'));
+      if(st.src==='stage') return lots.some(l=>l.hist.some(h=>h[1]===st.stageKey));
+      return true;
+    }).length;
+
+    return `
+    <div class="sbox ${box.color} ${boxOpenState[box.id]?'open':''}" id="box-${box.id}">
+      <div class="sbox-head" onclick="toggleBox('${box.id}')">
+        <div class="sbox-num">${box.num}</div>
+        <div class="sbox-titlewrap">
+          <div class="sbox-title">${box.title}</div>
+          <div class="sbox-sub">${box.sub}</div>
+        </div>
+        <div class="sbox-summary">${doneSteps} / ${box.steps.length} 단계</div>
+        ${box.detailUrl ? `<a href="${box.detailUrl}" onclick="event.stopPropagation()" style="font-size:11px;color:var(--ac);text-decoration:none;background:var(--card2);border:1px solid var(--line);padding:5px 10px;border-radius:6px;white-space:nowrap">상세보기 →</a>` : ''}
+        <div class="sbox-chev">▾</div>
+      </div>
+      <div class="sbox-body">${stepsHTML}</div>
+    </div>`;
+  }).join('');
+}
+function toggleBox(id){
+  boxOpenState[id] = !boxOpenState[id];
+  document.getElementById('box-'+id).classList.toggle('open', boxOpenState[id]);
+}
+function expandAll(){
+  const allOpen = Object.values(boxOpenState).every(v=>v);
+  Object.keys(boxOpenState).forEach(k => boxOpenState[k] = !allOpen);
+  BOXES.forEach(b => document.getElementById('box-'+b.id).classList.toggle('open', boxOpenState[b.id]));
+  document.getElementById('btnExpandAll').textContent = allOpen ? '전체 펼치기' : '전체 접기';
+}
+
 
 // ===== Mock 데이터 생성 (실연동 시 fetch(API) 응답으로 대체됨) =====
 function mockData(){
@@ -300,23 +432,8 @@ function render(){
    <div class="k ${ngLots.length?'r':'g'}"><div class="kl">NG 발생</div><div class="kv">${ngLots.length} <small>건</small></div><div class="ks">${ngLots.reduce((s,l)=>s+(l.ngQty||0),0)} EA 반송</div></div>
    <div class="k"><div class="kl">평균 리드타임</div><div class="kv">${avgLead} <small>시간</small></div><div class="ks">FAC1 스캔 → 출하</div></div>`;
 
-  // ── Flow ─────────────────────────────
-  const iqcYQty = lots.filter(l=>l.hist.some(h=>h[1]==='IQC_Y')).reduce((s,l)=>s+l.qty,0);
-  const fac1Qty = lots.filter(l=>l.hist.some(h=>h[1]==='①FAC1_STORAGE')).reduce((s,l)=>s+l.qty,0);
-  const fac2Qty = lots.filter(l=>l.hist.some(h=>h[1]==='③FAC2_STORAGE')).reduce((s,l)=>s+l.qty,0);
-  const packQty = lots.filter(l=>l.hist.some(h=>h[1]==='④PACKING')).reduce((s,l)=>s+l.qty,0);
-  document.getElementById('flow').innerHTML = `
-   <div class="fs s1"><div class="fn">발주계획 (S1)</div><div class="fq">${fmt(planTotal)}</div><div class="fg2">PO 승인 기준</div></div>
-   <div class="ar">›</div>
-   <div class="fs s2"><div class="fn">① FAC1 Storage (S2)</div><div class="fq">${fmt(fac1Qty)}</div><div class="fg2">QR 스캔</div></div>
-   <div class="ar">›</div>
-   <div class="fs s2"><div class="fn">② 배송 (S2)</div><div class="fq">${fmt(iqcYQty+ngLots.reduce((s,l)=>s+l.qty,0))}</div><div class="fg2">OUT/IN 스캔</div></div>
-   <div class="ar">›</div>
-   <div class="fs s3"><div class="fn">IQC 통과 (S3)</div><div class="fq">${fmt(iqcYQty)}</div><div class="fg2">Y 판정</div></div>
-   <div class="ar">›</div>
-   <div class="fs s3"><div class="fn">③ FAC2·공정 (S3)</div><div class="fq">${fmt(fac2Qty)}</div><div class="fg2">8-Process</div></div>
-   <div class="ar">›</div>
-   <div class="fs s4"><div class="fn">④ 출하 (S4)</div><div class="fq">${fmt(shippedQty)}</div><div class="fg2">완료</div></div>`;
+  // ── 1~4단계 시퀀스 박스 ────────────────
+  renderBoxes(lots);
 
   renderPlanTab(activeModels, shipped);
   renderPOTab();
@@ -453,6 +570,7 @@ document.querySelectorAll('.tab').forEach(t=>{
   };
 });
 document.getElementById('fModel').addEventListener('change', render);
+document.getElementById('btnExpandAll').addEventListener('click', expandAll);
 
 load();
 </script>
