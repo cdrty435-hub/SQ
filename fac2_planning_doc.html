@@ -1,0 +1,262 @@
+<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>2공장 발주계획 프로세스 (Box 1)</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Malgun Gothic','Apple SD Gothic Neo',sans-serif;background:#f4f4f4;color:#1a1a1a;padding:30px 16px}
+.page{max-width:1000px;margin:0 auto;background:#fff;border:1px solid #ccc;padding:44px 52px 60px}
+
+.doc-title{font-size:22px;font-weight:700;border-bottom:3px solid #1a1a1a;padding-bottom:14px;margin-bottom:6px}
+.doc-sub{font-size:12.5px;color:#555;margin-bottom:26px}
+.doc-meta{font-size:11.5px;color:#777;margin-bottom:26px}
+.doc-meta span{margin-right:18px}
+
+.toc{background:#f7f7f7;border:1px solid #ddd;padding:14px 18px;margin-bottom:32px;font-size:12.5px}
+.toc-title{font-weight:700;margin-bottom:8px}
+.toc a{color:#1a4fa0;text-decoration:none;display:inline-block;margin-right:16px;margin-bottom:4px}
+.toc a:hover{text-decoration:underline}
+
+h2{font-size:16px;font-weight:700;margin-top:38px;margin-bottom:4px;padding-bottom:6px;border-bottom:2px solid #1a1a1a}
+h2 .num{display:inline-block;width:24px}
+.step-desc{font-size:12px;color:#555;margin-bottom:14px}
+
+.qline{font-size:13px;font-weight:700;margin-top:16px;margin-bottom:4px;color:#1a1a1a}
+.qline::before{content:'▸ ';color:#888}
+.answer{font-size:12.5px;color:#333;line-height:1.7;margin-bottom:10px;margin-left:16px}
+
+table{width:100%;border-collapse:collapse;font-size:12px;margin:10px 0 18px}
+caption{caption-side:top;text-align:left;font-size:12px;font-weight:700;padding-bottom:6px;color:#1a1a1a}
+th{background:#2b3648;color:#fff;font-weight:700;padding:8px 9px;text-align:left;font-size:11.5px;border:1px solid #2b3648}
+td{padding:7px 9px;border:1px solid #ccc}
+tr:nth-child(even) td{background:#fafafa}
+.num-col{text-align:right}
+.center{text-align:center}
+
+.status-ok{color:#0a7a3d;font-weight:700}
+.status-wn{color:#a35b00;font-weight:700}
+.status-no{color:#b0261e;font-weight:700}
+
+.note{font-size:11px;color:#666;background:#f7f7f7;border-left:3px solid #999;padding:8px 12px;margin:10px 0 18px}
+.note b{color:#1a1a1a}
+
+.formula{background:#eef1f6;border:1px solid #ccd3e0;padding:12px 16px;font-size:12.5px;margin:10px 0 18px;font-family:'Consolas',monospace}
+.formula .step{margin-bottom:6px}
+.formula .step b{color:#1a4fa0}
+
+.legend{display:flex;gap:20px;font-size:11.5px;margin:6px 0 18px;flex-wrap:wrap}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.legend i{width:10px;height:10px;display:inline-block;border-radius:2px}
+
+.flowtext{font-size:12.5px;margin:10px 0 18px}
+.flowtext .arrow{color:#888;margin:0 4px}
+.flowtext b{color:#1a1a1a}
+
+.foot{margin-top:50px;padding-top:14px;border-top:1px solid #ccc;font-size:10.5px;color:#888;display:flex;justify-content:space-between}
+@media print{ body{background:#fff;padding:0} .page{border:none;max-width:none} }
+</style></head><body>
+<div class="page">
+
+  <div class="doc-title">2공장 발주계획 프로세스 — Box 1 (1~5단계)</div>
+  <div class="doc-sub">고객사 접수부터 1공장 발주 진행까지 · 가용자산분석(수량·인력·설비CAPA) 기준 문서</div>
+  <div class="doc-meta">
+    <span>문서번호: STC-PROC-B1-01</span>
+    <span>작성: 공무팀</span>
+    <span>기준일: 2026-08-20</span>
+    <span>버전: v1.0</span>
+  </div>
+
+  <div class="toc">
+    <div class="toc-title">목차</div>
+    <a href="#s1">1. 고객사 접수</a>
+    <a href="#s2">2. 2공장에서는 어떻게 받을지</a>
+    <a href="#s3">3. 2공장 가용자산 분석</a>
+    <a href="#s4">4. 2공장 계획수립</a>
+    <a href="#s5">5. 2공장 → 1공장 발주 진행</a>
+  </div>
+
+  <!-- ================= 1. 고객사 접수 ================= -->
+  <h2 id="s1"><span class="num">1.</span> 고객사 접수</h2>
+  <div class="step-desc">고객사 발주서(PO)를 접수하고 시스템에 등록하는 단계</div>
+
+  <div class="qline">1) 고객사 접수를 어떻게 받을지</div>
+  <div class="answer">고객사 PO를 이메일 또는 EDI로 수신한다. 수신 즉시 문서번호·고객사명·대상 모델·수량·발주일을 시스템에 등록하고, 원본 PO 파일을 첨부하여 보관한다(SQ 심사 근거자료).</div>
+
+  <table>
+    <caption>접수 PO 예시</caption>
+    <tr><th>문서번호</th><th>고객사</th><th>발주일</th><th>대상 모델</th><th class="num-col">총 수량</th></tr>
+    <tr><td>PO-2026-0823-CN8</td><td>OO Motors</td><td>2026-08-20</td><td>CN8 S / CN8 C / CN8 H</td><td class="num-col" id="totalQty"></td></tr>
+  </table>
+
+  <!-- ================= 2. 2공장 접수 ================= -->
+  <h2 id="s2"><span class="num">2.</span> 2공장에서는 어떻게 받을지</h2>
+  <div class="step-desc">접수된 PO를 2공장이 확인하고 시스템에 정식 등록하는 절차</div>
+
+  <div class="flowtext">
+    <b>PO 수신</b> <span class="arrow">→</span> <b>2공장 담당자 확인</b> <span class="arrow">→</span> <b>시스템 등록</b> <span class="arrow">→</span> <b>가용자산분석 대기</b> <span class="arrow">→</span> 3단계 진입
+  </div>
+  <div class="note">2공장 담당자가 수량·모델·납기를 1차 확인한 뒤 시스템에 등록하며, 등록 즉시 상태가 '가용자산분석 대기'로 전환되어 3단계로 자동 연결된다.</div>
+
+  <!-- ================= 3. 가용자산분석 ================= -->
+  <h2 id="s3"><span class="num">3.</span> 2공장 가용자산 분석</h2>
+  <div class="step-desc">수량 · 인력 · 설비 CAPA를 한 시트에서 통합 분석하여 생산 가능 여부를 판정</div>
+
+  <div class="qline">1) 수량을 받으면 어떻게 분석하는지</div>
+  <div class="answer">모델별 요청수량을 계획기간(일)으로 나누어 일일 필요 CAPA를 산출하고, 해당 모델을 생산할 수 있는 가동가능 설비의 CAPA 합계와 비교한다.</div>
+
+  <div class="qline">2) 인력은 어떻게 관리할지</div>
+  <div class="answer">주간조·야간조별 필요인원 대비 배치인원을 확인한다. 부족 인원이 있는 조는 별도 표기하여 4단계 계획수립 시 잔업·지원 배치 여부를 검토한다.</div>
+
+  <div class="qline">3) 설비 CAPA는 어떻게 할지</div>
+  <div class="answer">DC1~DC23 중 해당 모델에 대응 가능하면서 상태가 '가동가능'인 설비만 CAPA 계산에 포함한다. 정비중·고장 설비는 제외하여 실제 생산 가능한 CAPA만 반영한다.</div>
+
+  <div class="qline">4) 이걸 한 시트에서 분석하는 것</div>
+  <div class="answer">아래 표 하나에 요청수량·가동설비·설비CAPA·필요CAPA·소요일수·인력영향·종합판정을 모두 배치하여, 별도 화면 전환 없이 한 번에 확인할 수 있도록 구성했다.</div>
+
+  <table id="unifiedSheet">
+    <caption>통합 가용자산분석 시트</caption>
+    <thead>
+      <tr>
+        <th>모델</th><th class="num-col">요청수량</th><th>가동 설비</th>
+        <th class="num-col">설비 CAPA/일</th><th class="num-col">필요 CAPA/일</th>
+        <th class="num-col">소요일수</th><th>인력 영향</th><th>종합판정</th>
+      </tr>
+    </thead>
+    <tbody id="sheetBody"></tbody>
+  </table>
+
+  <div class="legend">
+    <span><i style="background:#0a7a3d"></i>가능·여유 — 필요CAPA/일 ≤ 설비CAPA/일</span>
+    <span><i style="background:#a35b00"></i>주의·증산검토 — 설비CAPA/일의 130% 이내 초과</span>
+    <span><i style="background:#b0261e"></i>불가·증산필요 — 설비CAPA/일의 130% 초과</span>
+  </div>
+
+  <table>
+    <caption>설비 CAPA 현황 (DC1~DC23 중 발췌)</caption>
+    <thead><tr><th>설비</th><th>상태</th><th>대응 모델</th><th class="num-col">CAPA/일</th></tr></thead>
+    <tbody id="equipBody"></tbody>
+  </table>
+
+  <table>
+    <caption>인력 배치 현황</caption>
+    <thead><tr><th>조</th><th class="num-col">필요인원</th><th class="num-col">배치인원</th><th>상태</th></tr></thead>
+    <tbody id="wfBody"></tbody>
+  </table>
+
+  <!-- ================= 4. 계획수립 ================= -->
+  <h2 id="s4"><span class="num">4.</span> 2공장 계획수립</h2>
+  <div class="step-desc">3번 가용자산분석 결과를 기반으로 생산계획(안)을 수립</div>
+
+  <div class="qline">1) 3번에서 가용 자산을 분석한 자료를 기반으로 계획수립</div>
+  <div class="answer">종합판정이 '불가' 또는 '주의'인 모델을 생산 우선순위 1순위로 배치하여 선제적으로 조치하고, 여유가 있는 모델은 후순위로 정렬한다.</div>
+
+  <table>
+    <caption>생산 계획(안) — 위험도순 정렬</caption>
+    <thead><tr><th class="center">순위</th><th>모델</th><th class="num-col">확정 수량</th><th>종합판정</th><th class="num-col">소요일수</th><th>비고</th></tr></thead>
+    <tbody id="planBody"></tbody>
+  </table>
+
+  <!-- ================= 5. 발주 진행 ================= -->
+  <h2 id="s5"><span class="num">5.</span> 2공장 → 1공장 발주 진행</h2>
+  <div class="step-desc">4번에서 확정된 계획을 1공장에 통보</div>
+
+  <div class="answer">4번에서 확정된 생산순서와 수량을 1공장에 통보한다. 통보 시각은 자동 기록되며, 이 시점부터 Box 2(1공장 생산계획)가 시작된다.</div>
+
+  <table>
+    <caption>발주수량 통보 (FAC2 → FAC1)</caption>
+    <thead><tr><th>모델</th><th class="num-col">확정 수량</th><th class="center">생산 순서</th><th>비고</th></tr></thead>
+    <tbody id="notifyBody"></tbody>
+  </table>
+
+  <div class="note">본 문서의 표는 실데이터 예시입니다. 실제 운영 시 Google Sheets(발주계획 탭)와 연동하여 위 표의 값이 자동으로 갱신되도록 구성할 수 있습니다.</div>
+
+  <div class="foot">
+    <span>STC Co., Ltd. · 공무팀</span>
+    <span id="genTime"></span>
+  </div>
+</div>
+
+<script>
+// ── 데이터 (실연동 시 Google Sheets 값으로 교체) ──
+const EQUIP = [
+  { id:'DC1', status:'가동가능', model:['CN8 S','CN8 C'], capa:180 },
+  { id:'DC2', status:'가동가능', model:['CN8 S','CN8 H'], capa:160 },
+  { id:'DC3', status:'정비중',   model:['CN8 C'],         capa:150 },
+  { id:'DC4', status:'가동가능', model:['CN8 S'],         capa:170 },
+  { id:'DC5', status:'고장',     model:['CN8 H'],         capa:140 },
+  { id:'DC6', status:'가동가능', model:['CN8 C','CN8 H'], capa:155 },
+  { id:'DC7', status:'고장',     model:['CN8 S'],         capa:175 },
+  { id:'DC8', status:'가동가능', model:['CN8 C'],         capa:150 },
+];
+const WORKFORCE = [
+  { shift:'주간조', required:12, assigned:11 },
+  { shift:'야간조', required:10, assigned:10 },
+];
+const ORDER = [
+  { model:'CN8 S', qty:660 },
+  { model:'CN8 C', qty:440 },
+  { model:'CN8 H', qty:2200 },
+];
+const PLAN_DAYS = 5;
+
+function fmt(v){ return Number(v).toLocaleString(); }
+function equipFor(model){ return EQUIP.filter(e => e.model.includes(model) && e.status==='가동가능'); }
+function capaFor(model){ return equipFor(model).reduce((s,e)=>s+e.capa,0); }
+function verdict(model, qty){
+  const capaDay = capaFor(model);
+  const needDay = qty / PLAN_DAYS;
+  const leadDays = capaDay ? qty/capaDay : Infinity;
+  let cls, label;
+  if(capaDay===0){ cls='status-no'; label='불가·가동설비 없음'; }
+  else if(needDay <= capaDay){ cls='status-ok'; label='가능·여유'; }
+  else if(needDay <= capaDay*1.3){ cls='status-wn'; label='주의·증산검토'; }
+  else{ cls='status-no'; label='불가·증산필요'; }
+  return { capaDay, needDay, leadDays, cls, label };
+}
+
+document.getElementById('totalQty').textContent = fmt(ORDER.reduce((s,o)=>s+o.qty,0)) + ' EA';
+
+const verdicts = ORDER.map(o => ({...o, v: verdict(o.model, o.qty)}));
+const wfShort = WORKFORCE.filter(w=>w.assigned<w.required);
+
+document.getElementById('sheetBody').innerHTML = verdicts.map(x=>{
+  const eq = equipFor(x.model);
+  const wfNote = wfShort.length ? wfShort.map(w=>w.shift).join('·')+' 부족' : '충족';
+  return `<tr>
+    <td><b>${x.model}</b></td>
+    <td class="num-col">${fmt(x.qty)} EA</td>
+    <td>${eq.length}대 (${eq.map(e=>e.id).join(', ')||'-'})</td>
+    <td class="num-col">${fmt(x.v.capaDay)} EA</td>
+    <td class="num-col">${fmt(Math.round(x.v.needDay))} EA</td>
+    <td class="num-col">${isFinite(x.v.leadDays)?x.v.leadDays.toFixed(1)+'일':'-'}</td>
+    <td>${wfNote}</td>
+    <td class="${x.v.cls}">${x.v.label}</td>
+  </tr>`;
+}).join('');
+
+document.getElementById('equipBody').innerHTML = EQUIP.map(e=>{
+  const cls = e.status==='가동가능'?'status-ok':e.status==='정비중'?'status-wn':'status-no';
+  return `<tr><td>${e.id}</td><td class="${cls}">${e.status}</td><td>${e.model.join(', ')}</td><td class="num-col">${fmt(e.capa)} EA</td></tr>`;
+}).join('');
+
+document.getElementById('wfBody').innerHTML = WORKFORCE.map(w=>{
+  const ok = w.assigned>=w.required;
+  return `<tr><td>${w.shift}</td><td class="num-col">${w.required}명</td><td class="num-col">${w.assigned}명</td>
+    <td class="${ok?'status-ok':'status-wn'}">${ok?'충족':(w.required-w.assigned)+'명 부족'}</td></tr>`;
+}).join('');
+
+const sortedByRisk = [...verdicts].sort((a,b)=>{
+  const order = {'status-no':0,'status-wn':1,'status-ok':2};
+  return order[a.v.cls]-order[b.v.cls];
+});
+document.getElementById('planBody').innerHTML = sortedByRisk.map((x,i)=>`
+  <tr><td class="center">${i+1}</td><td><b>${x.model}</b></td><td class="num-col">${fmt(x.qty)} EA</td>
+  <td class="${x.v.cls}">${x.v.label}</td><td class="num-col">${isFinite(x.v.leadDays)?x.v.leadDays.toFixed(1)+'일':'-'}</td>
+  <td>${x.v.cls==='status-no'?'설비 정비 일정 단축 또는 납기 재협의 필요':'계획대로 진행'}</td></tr>`).join('');
+
+document.getElementById('notifyBody').innerHTML = sortedByRisk.map((x,i)=>`
+  <tr><td><b>${x.model}</b></td><td class="num-col">${fmt(x.qty)} EA</td><td class="center">${i+1}순위</td>
+  <td class="${x.v.cls}">${x.v.cls==='status-no'?'증산/납기 협의 필요':'정상 진행'}</td></tr>`).join('');
+
+document.getElementById('genTime').textContent = '생성: ' + new Date().toLocaleString('ko-KR');
+</script>
+</body></html>
