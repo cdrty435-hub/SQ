@@ -1,0 +1,356 @@
+<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>STC WIP 통합 운영 대시보드 (1~16단계)</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Malgun Gothic','Apple SD Gothic Neo',sans-serif;background:#eee;color:#1a1a1a}
+.app{display:flex;min-height:100vh}
+
+/* ── Sidebar ───────────────────────────── */
+.side{width:280px;min-width:280px;background:#1f2937;color:#e5e7eb;height:100vh;position:sticky;top:0;overflow-y:auto}
+.side-hd{padding:18px 16px 14px;border-bottom:1px solid #374151}
+.side-hd .t1{font-size:14px;font-weight:700;color:#fff}
+.side-hd .t2{font-size:10.5px;color:#9ca3af;margin-top:3px;line-height:1.5}
+.side-group{font-size:10px;color:#6b7280;padding:12px 16px 4px;text-transform:uppercase;letter-spacing:.05em}
+.side-item{display:flex;gap:10px;align-items:flex-start;padding:9px 16px;cursor:pointer;border-left:3px solid transparent;font-size:12px;line-height:1.4}
+.side-item:hover{background:#273244}
+.side-item.active{background:#111827;border-left-color:#4a9eff;color:#fff}
+.side-num{width:20px;height:20px;min-width:20px;border-radius:50%;background:#374151;color:#d1d5db;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-top:1px}
+.side-item.active .side-num{background:#4a9eff;color:#0b1220}
+.side-label{color:#cbd5e1}
+.side-item.active .side-label{color:#fff;font-weight:600}
+.side-foot{padding:14px 16px;font-size:10px;color:#6b7280;border-top:1px solid #374151;margin-top:8px}
+
+/* ── Main content ──────────────────────── */
+.main{flex:1;padding:30px 40px 70px;max-width:1100px}
+.crumb{font-size:11px;color:#888;margin-bottom:10px}
+.crumb b{color:#1a4fa0}
+.step-hd{border-bottom:3px solid #1a1a1a;padding-bottom:12px;margin-bottom:6px;display:flex;align-items:baseline;gap:10px}
+.step-hd .n{font-size:22px;font-weight:800;color:#1a4fa0}
+.step-hd .t{font-size:20px;font-weight:700}
+.sheet-tag{display:inline-block;background:#eef1f6;border:1px solid #ccd3e0;color:#1a4fa0;font-size:10.5px;
+  font-family:monospace;padding:2px 8px;border-radius:4px;margin-left:6px}
+.step-desc{font-size:12.5px;color:#555;margin:10px 0 22px;line-height:1.7}
+
+.linknav{display:flex;justify-content:space-between;font-size:11.5px;margin:26px 0 4px;color:#1a4fa0}
+.linknav span{cursor:pointer}
+.linknav span:hover{text-decoration:underline}
+
+h3{font-size:13px;font-weight:700;margin-top:22px;margin-bottom:8px;color:#1a1a1a}
+table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:16px}
+caption{caption-side:top;text-align:left;font-size:12px;font-weight:700;padding-bottom:6px}
+th{background:#2b3648;color:#fff;font-weight:700;padding:7px 9px;text-align:left;font-size:11px;border:1px solid #2b3648}
+td{padding:6.5px 9px;border:1px solid #ccc}
+tr:nth-child(even) td{background:#fafafa}
+.num-col{text-align:right}
+.center{text-align:center}
+.status-ok{color:#0a7a3d;font-weight:700}
+.status-wn{color:#a35b00;font-weight:700}
+.status-no{color:#b0261e;font-weight:700}
+
+.note{font-size:11px;color:#666;background:#f7f7f7;border-left:3px solid #999;padding:9px 13px;margin:10px 0 18px;line-height:1.6}
+.note b{color:#1a1a1a}
+.formula{background:#eef1f6;border:1px solid #ccd3e0;padding:11px 15px;font-size:12px;margin:10px 0 18px;font-family:Consolas,monospace;line-height:1.8}
+.flowtext{font-size:12px;margin:8px 0 18px}
+.flowtext .arrow{color:#888;margin:0 5px}
+.flowtext b{color:#1a1a1a}
+.badge2{font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px}
+.badge2.ok{background:#dcf5e4;color:#0a7a3d}
+.badge2.wn{background:#ffeecb;color:#a35b00}
+.badge2.no{background:#fbdad8;color:#b0261e}
+.badge2.gy{background:#e6e6e6;color:#555}
+@media(max-width:960px){.side{position:relative;height:auto}.app{flex-direction:column}.main{max-width:none}}
+</style></head><body>
+<div class="app">
+  <nav class="side" id="side">
+    <div class="side-hd">
+      <div class="t1">STC WIP 통합 운영 대시보드</div>
+      <div class="t2">고객사 발주 → 2공장 → 1공장 → 2공장 → 출하<br>전 구간 16단계 · 단계별 Google Sheets 연동</div>
+    </div>
+    <div id="sideList"></div>
+    <div class="side-foot">STC Co., Ltd. · 공무팀<br>각 단계 = 독립 Google Sheets 탭 + Apps Script</div>
+  </nav>
+  <main class="main" id="main"></main>
+</div>
+
+<script>
+/* ===================================================================
+   공통 마스터 데이터 (여러 단계에서 공유 — 실연동 시 Google Sheets 값)
+=================================================================== */
+const PO_MAIN = "PO-2026-0823-CN8";
+const CUSTOMER = "OO Motors";
+const ORDERS = [
+  { model:"CN8 S", qty:660 },
+  { model:"CN8 C", qty:440 },
+  { model:"CN8 H", qty:2200 },
+];
+const TOTAL_QTY = ORDERS.reduce((s,o)=>s+o.qty,0);
+function fmt(v){ return Number(v).toLocaleString(); }
+
+/* ===================================================================
+   16단계 정의 (num, key, navLabel, title, sheetTab, desc, blocks[])
+=================================================================== */
+const STEPS = [
+
+{ num:1, key:"s1", nav:"고객사 발주현황", title:"고객사 발주현황", tab:"1_고객사발주현황",
+  desc:"고객사로부터 접수된 전체 발주(PO) 현황을 모델·수량·납기 기준으로 관리합니다.",
+  blocks:[
+    { type:"table", caption:"발주 현황 (전체)", headers:["PO번호","고객사","발주일","모델","수량","납기","상태"],
+      rows:[
+        [PO_MAIN,CUSTOMER,"2026-08-20","CN8 S","660 EA","2026-08-27",badge("접수완료","ok")],
+        [PO_MAIN,CUSTOMER,"2026-08-20","CN8 C","440 EA","2026-08-27",badge("접수완료","ok")],
+        [PO_MAIN,CUSTOMER,"2026-08-20","CN8 H","2,200 EA","2026-08-27",badge("접수완료","ok")],
+        ["PO-2026-0816-CN7",CUSTOMER,"2026-08-13","CN7 A","500 EA","2026-08-20",badge("출하완료","gy")],
+      ]},
+    { type:"note", text:"이 표가 전체 프로세스의 시작점입니다. 총 요청수량 <b>"+fmt(TOTAL_QTY)+" EA</b>(CN8 S/C/H)가 2단계 접수 → 3단계 가용자산분석의 기준값이 됩니다." },
+  ]},
+
+{ num:2, key:"s2", nav:"고객사 발주 접수현황", title:"고객사 발주 접수현황 (2공장 접수)", tab:"2_발주접수현황",
+  desc:"2공장이 고객사 PO를 확인하고 시스템에 정식 등록·승인하는 게이트입니다. 승인 전에는 다음 단계로 진행되지 않습니다.",
+  blocks:[
+    { type:"table", caption:"접수·승인 기록", headers:["PO번호","접수일시","접수담당자","승인상태","승인자","승인일시"],
+      rows:[[PO_MAIN,"2026-08-20 10:15","2공장 생산관리 김OO",badge("확정","ok"),"2공장 팀장","2026-08-21 09:32"]]},
+    { type:"flow", text:"PO 수신 <span class='arrow'>→</span> 2공장 담당자 확인 <span class='arrow'>→</span> 시스템 등록 <span class='arrow'>→</span> <b>승인 확정</b> <span class='arrow'>→</span> 3단계 진입" },
+  ]},
+
+{ num:3, key:"s3", nav:"2공장 가용자산 4M 분석", title:"2공장 가용자산 4M 분석", tab:"3_2공장가용자산분석",
+  desc:"2공장의 후공정 설비(사상·쇼트·MCT·열처리·함침)를 대상으로 인력(Man)·설비(Machine)·자재(Material)·방법(Method) 4M을 분석하고, 공정 병목(Bottleneck)을 판정합니다.",
+  blocks:[
+    { type:"table", caption:"Man · 인력 현황", headers:["조","필요인원","배치인원","상태"],
+      rows:[["주간조","14","13",badge("1명 부족","wn")],["야간조","10","10",badge("충족","ok")]]},
+    { type:"table", caption:"Machine · 공정별 설비 CAPA", headers:["공정","가동 설비","CAPA/일(EA)","비고"],
+      rows:[
+        ["① 사상","FN1, FN2","780",""],
+        ["② 쇼트","ST1, ST2","700",""],
+        ["③ MCT","MCT1","300",badge("MCT2 고장 · 병목","no")],
+        ["④ 열처리","HT1, HT2","1,000",""],
+        ["⑤ 함침","IMP1","450",""],
+      ]},
+    { type:"table", caption:"Material · 자재 현황", headers:["자재","필요수량","보유재고","상태"],
+      rows:[["표면처리제","40 L","65 L",badge("충족","ok")],["포장재(PP밴드)","3,300 EA분","2,800 EA분",badge("부족","wn")]]},
+    { type:"table", caption:"종합판정 — 공정 병목 기준", headers:["총 요청수량","계획기간","필요CAPA/일","병목 공정","병목 CAPA/일","소요일수","종합판정"],
+      rows:[[fmt(TOTAL_QTY)+" EA","5일","660 EA","MCT","300 EA","11.0일",badge("불가·MCT 정비 시급","no")]]},
+    { type:"note", text:"Method(작업방법): 표준작업서(STC-WI-FAC2-03) 기준 동일 — 별도 이슈 없음. <b>MCT2 설비 고장</b>이 전체 공정의 병목이므로, 4단계 계획수립 시 MCT 정비 일정을 최우선으로 반영해야 합니다." },
+  ]},
+
+{ num:4, key:"s4", nav:"고객사 배송 플랜", title:"고객사 배송 플랜 (2공장 계획수립)", tab:"4_고객사배송플랜",
+  desc:"3단계 가용자산분석 결과를 근거로, 고객 납기를 충족하도록 모델별 착수일을 역산하여 계획을 수립합니다.",
+  blocks:[
+    { type:"table", caption:"모델별 배송 플랜", headers:["모델","확정수량","고객납기","필요착수일(역산)","생산순서","비고"],
+      rows:[
+        ["CN8 H","2,200 EA","2026-08-27","2026-08-16",badge("1순위","no"),"MCT 병목으로 착수 지연 위험 — 납기 재협의 검토"],
+        ["CN8 S","660 EA","2026-08-27","2026-08-24",badge("2순위","ok"),"정상 진행"],
+        ["CN8 C","440 EA","2026-08-27","2026-08-25",badge("3순위","ok"),"정상 진행"],
+      ]},
+    { type:"note", text:"필요착수일 = 고객납기 − 소요일수(3단계 병목 CAPA 기준). CN8 H는 역산 착수일이 이미 지났으므로 MCT 정비 일정을 단축하거나 고객과 납기를 재협의해야 합니다." },
+  ]},
+
+{ num:5, key:"s5", nav:"2공장→1공장 생산 플랜 발송", title:"2공장 → 1공장 생산 플랜 발송", tab:"5_1공장발주통보",
+  desc:"4단계에서 확정된 생산순서와 수량을 1공장에 공식 통보합니다.",
+  blocks:[
+    { type:"table", caption:"발송 기록", headers:["발송번호","모델","확정수량","생산순서","발송일시","발송자","1공장 수신확인"],
+      rows:[
+        ["NTC-0821-01","CN8 H","2,200 EA","1순위","2026-08-21 11:00","2공장 생산관리 김OO",badge("확인완료","ok")],
+        ["NTC-0821-02","CN8 S","660 EA","2순위","2026-08-21 11:00","2공장 생산관리 김OO",badge("확인완료","ok")],
+        ["NTC-0821-03","CN8 C","440 EA","3순위","2026-08-21 11:00","2공장 생산관리 김OO",badge("확인완료","ok")],
+      ]},
+  ]},
+
+{ num:6, key:"s6", nav:"1공장 플랜 접수현황", title:"1공장 플랜 접수현황", tab:"6_1공장플랜접수",
+  desc:"1공장이 2공장의 발송 내용을 수신하고 접수 처리하는 단계입니다.",
+  blocks:[
+    { type:"table", caption:"접수 기록", headers:["발송번호","수신일시","1공장 담당자","접수상태"],
+      rows:[
+        ["NTC-0821-01","2026-08-21 11:20","1공장 생산관리 이OO",badge("접수완료","ok")],
+        ["NTC-0821-02","2026-08-21 11:20","1공장 생산관리 이OO",badge("접수완료","ok")],
+        ["NTC-0821-03","2026-08-21 11:20","1공장 생산관리 이OO",badge("접수완료","ok")],
+      ]},
+  ]},
+
+{ num:7, key:"s7", nav:"1공장 가용자산 분석 (4M)", title:"1공장 가용자산 분석 (4M)", tab:"7_1공장가용자산분석",
+  desc:"1공장 다이캐스팅 설비(DC1~DC23)와 트리밍 프레스를 대상으로 4M 분석을 수행합니다.",
+  blocks:[
+    { type:"table", caption:"Man · 인력 현황", headers:["조","필요인원","배치인원","상태"],
+      rows:[["주간조","16","16",badge("충족","ok")],["야간조","12","11",badge("1명 부족","wn")]]},
+    { type:"table", caption:"Machine · 설비 CAPA 현황 (DC1~DC23 중 발췌)", headers:["설비","상태","대응 모델","CAPA/일"],
+      rows:[
+        ["DC1",badge("가동가능","ok"),"CN8 S, CN8 C","180 EA"],
+        ["DC2",badge("가동가능","ok"),"CN8 S, CN8 H","160 EA"],
+        ["DC3",badge("정비중","wn"),"CN8 C","150 EA"],
+        ["DC4",badge("가동가능","ok"),"CN8 S","170 EA"],
+        ["DC5",badge("고장","no"),"CN8 H","140 EA"],
+        ["DC6",badge("가동가능","ok"),"CN8 C, CN8 H","155 EA"],
+        ["TP1(트리밍)",badge("가동가능","ok"),"전 모델","900 EA"],
+        ["TP2(트리밍)",badge("가동가능","ok"),"전 모델","900 EA"],
+      ]},
+    { type:"table", caption:"Material · 원자재 현황", headers:["자재","필요수량","보유재고","상태"],
+      rows:[["알루미늄 잉곳(ADC12)","4.8 톤","6.2 톤",badge("충족","ok")],["이형제","180 L","95 L",badge("부족","wn")]]},
+    { type:"table", caption:"종합판정 — 모델별", headers:["모델","요청수량","가동 설비","설비CAPA/일","필요CAPA/일","소요일수","종합판정"],
+      rows:[
+        ["CN8 S","660 EA","DC1,DC2,DC4","510 EA","132 EA","1.3일",badge("가능·여유","ok")],
+        ["CN8 C","440 EA","DC1,DC6","335 EA","88 EA","1.3일",badge("가능·여유","ok")],
+        ["CN8 H","2,200 EA","DC2,DC6","315 EA","440 EA","7.0일",badge("불가·증산필요","no")],
+      ]},
+    { type:"note", text:"DC5 고장으로 CN8 H 대응 설비가 부족합니다. 이형제 재고 부족도 함께 확인되어, 8단계 생산플랜 수립 시 DC5 긴급 정비와 이형제 발주를 동시에 반영해야 합니다." },
+  ]},
+
+{ num:8, key:"s8", nav:"1공장 생산플랜 수립", title:"1공장 생산플랜 수립", tab:"8_1공장생산플랜",
+  desc:"7단계 분석 결과를 반영해 위험도 높은 모델을 우선 배치한 생산계획입니다.",
+  blocks:[
+    { type:"table", caption:"생산 계획(안)", headers:["순위","모델","확정수량","착수예정일","완료예정일","담당설비"],
+      rows:[
+        ["1","CN8 H","2,200 EA","2026-08-22","2026-08-29(DC5 정비 후)","DC2, DC6, DC5(정비완료 시)"],
+        ["2","CN8 S","660 EA","2026-08-23","2026-08-24","DC1, DC2, DC4"],
+        ["3","CN8 C","440 EA","2026-08-24","2026-08-25","DC1, DC6"],
+      ]},
+  ]},
+
+{ num:9, key:"s9", nav:"다이캐스팅→트리밍→검사", title:"1공장 다이캐스팅 → 트리밍 프레스 → 검사", tab:"9_다이캐스팅생산이력",
+  desc:"Lot 단위로 주조·트리밍·검사(육안/X-ray/CMM) 실적을 기록합니다.",
+  blocks:[
+    { type:"table", caption:"생산 이력", headers:["Lot ID","모델","담당설비","주조일시","트리밍완료","검사결과","수량","불량수량"],
+      rows:[
+        ["LOT-0823-CN8S-01","CN8 S","DC1","08-23 08:00","08-23 09:10",badge("합격","ok"),"120","0"],
+        ["LOT-0823-CN8S-02","CN8 S","DC2","08-23 09:30","08-23 10:40",badge("합격","ok"),"80","0"],
+        ["LOT-0823-CN8C-01","CN8 C","DC1","08-23 10:50","08-23 12:00",badge("합격","ok"),"80","0"],
+        ["LOT-0824-CN8C-02","CN8 C","DC6","08-24 08:00","08-24 09:10",badge("불량 2건","wn"),"90","2"],
+      ]},
+    { type:"note", text:"검사는 육안검사(전수) + 품질부서 순회검사(X-ray, CMM 샘플)로 진행합니다. 불량 발생분은 10단계 재공품 재고에서 별도 관리됩니다." },
+  ]},
+
+{ num:10, key:"s10", nav:"1공장 재공품 스톡·안전재고", title:"1공장 재공품 스톡 · 안전재고 설정", tab:"10_1공장재공품재고",
+  desc:"주조·트리밍이 끝난 재공품을 로케이션별로 보관하며, 안전재고 기준과 비교합니다.",
+  blocks:[
+    { type:"table", caption:"재공품 재고 현황", headers:["Lot ID","모델","로케이션","수량","안전재고기준","비교"],
+      rows:[
+        ["LOT-0823-CN8S-01","CN8 S","A-12","120 EA","100 EA",badge("충분","ok")],
+        ["LOT-0823-CN8S-02","CN8 S","A-13","80 EA","100 EA",badge("부족","wn")],
+        ["LOT-0823-CN8C-01","CN8 C","A-20","80 EA","60 EA",badge("충분","ok")],
+      ]},
+  ]},
+
+{ num:11, key:"s11", nav:"1공장→2공장 배송계획·DO", title:"1공장 → 2공장 배송계획 수립 및 DO 시작", tab:"11_배송계획DO",
+  desc:"Delivery Order(DO)를 발행하고 배송·하차 소요시간을 실측하여 1회 배송 가능량/횟수를 관리합니다.",
+  blocks:[
+    { type:"table", caption:"DO 발행 및 배송 실적", headers:["DO번호","Lot ID","수량","배송예정","배송소요(실측)","하차소요(실측)","비고"],
+      rows:[
+        ["DO-0823-01","LOT-0823-CN8S-01","120 EA","08-23 15:00","35분","15분","1인 운행"],
+        ["DO-0823-02","LOT-0823-CN8C-01","80 EA","08-23 16:00","35분","12분","1인 운행"],
+      ]},
+    { type:"table", caption:"배송 능력(CAPA) 산정", headers:["항목","값","산출근거"],
+      rows:[
+        ["1회 최대 적재량","약 200 EA","차량 적재함 기준"],
+        ["편도 소요시간","35분","배송+하차 실측 평균"],
+        ["1일 배송 가능 횟수","약 6~7회","가동시간 8시간 ÷ (35분×2+대기 10분)"],
+      ]},
+    { type:"note", text:"배송·하차 시간은 실측값을 누적하여 평균을 갱신합니다. 1회 배송 가능 횟수를 기준으로 4단계(고객사 배송 플랜)의 착수일 역산 정확도를 높입니다." },
+  ]},
+
+{ num:12, key:"s12", nav:"2공장 IQC검사 (AQL)", title:"2공장 IQC검사 — AQL-Ⅱ Lot별 검사", tab:"12_IQC검사_AQL",
+  desc:"입고된 Lot을 AQL(Acceptable Quality Level) 샘플링 기준으로 검사합니다. 품질 이력에 따라 검사 강도가 자동 전환됩니다.",
+  blocks:[
+    { type:"formula", text:
+      "AQL-2 (보통검사) — 기본 적용 수준\n"+
+      "연속 양호(불량 없음) → AQL-1 (수월한검사)로 전환 · 샘플 축소\n"+
+      "연속 불량 다발 → AQL-3 (까다로운검사)로 전환 · 샘플 확대\n"+
+      "LOT에 문제 발생 시 → 1공장이 2공장을 방문하여 해당 Lot을 공동 재검사" },
+    { type:"table", caption:"Lot별 검사 기록", headers:["Lot ID","검사레벨","샘플수","불량수","Ac(합격)","Re(불합격)","판정","1공장 전달"],
+      rows:[
+        ["LOT-0823-CN8S-01","AQL-2","20","0","1","2",badge("양품","ok"),badge("전달완료","ok")],
+        ["LOT-0823-CN8S-02","AQL-1","13","0","1","2",badge("양품","ok"),badge("전달완료","ok")],
+        ["LOT-0823-CN8C-01","AQL-1","13","0","1","2",badge("양품","ok"),badge("전달완료","ok")],
+        ["LOT-0824-CN8C-02","AQL-3","32","3","2","3",badge("불량","no"),badge("전달+반송","no")],
+      ]},
+    { type:"note", text:"LOT-0824-CN8C-02는 9단계에서 이미 불량 2건이 확인된 Lot으로, IQC에서 AQL-3(까다로운검사)로 전환되어 재검사한 결과 최종 <b>불량 판정 및 1공장 리턴</b> 처리되었습니다. 품질부서 간 내용 공유 후 1공장 생산담당자에게 전달됩니다." },
+  ]},
+
+{ num:13, key:"s13", nav:"2공장 공정작업 진행", title:"2공장 공정작업 진행 (사상→쇼트→MCT→열처리→함침)", tab:"13_공정작업이력",
+  desc:"IQC 합격 Lot을 대상으로 공정 이동 간 양품/불량 수량을 기록합니다.",
+  blocks:[
+    { type:"table", caption:"공정 이동 이력", headers:["Lot ID","① 사상","② 쇼트","③ MCT","④ 열처리","⑤ 함침","현재단계","공정불량"],
+      rows:[
+        ["LOT-0823-CN8S-01",badge("완료","ok"),badge("완료","ok"),badge("완료","ok"),badge("완료","ok"),badge("완료","ok"),"④ Packing 대기","0"],
+        ["LOT-0823-CN8S-02",badge("완료","ok"),badge("완료","ok"),badge("완료","ok"),badge("진행중","wn"),"-","열처리","0"],
+        ["LOT-0823-CN8C-01",badge("완료","ok"),badge("완료","ok"),badge("진행중","wn"),"-","-","MCT","1"],
+      ]},
+    { type:"note", text:"MCT2 고장(3단계 병목)의 영향으로 LOT-0823-CN8C-01이 MCT 공정에서 대기 중입니다. 공정별 양품/불량 수량은 과거 데이터와 함께 누적 관리되어 공정 수율 분석에 활용됩니다." },
+  ]},
+
+{ num:14, key:"s14", nav:"포장", title:"포장", tab:"14_포장",
+  desc:"전 공정을 통과한 Lot을 포장하고 박스 단위로 관리합니다.",
+  blocks:[
+    { type:"table", caption:"포장 기록", headers:["Lot ID","포장수량","포장일시","포장담당자","박스번호"],
+      rows:[["LOT-0823-CN8S-01","120 EA","2026-08-24 08:40","포장 박OO","BOX-0824-001"]]},
+  ]},
+
+{ num:15, key:"s15", nav:"출하준비 (출하검사)", title:"출하준비 (품질부서 출하검사)", tab:"15_출하준비",
+  desc:"포장 완료 Lot에 대해 품질부서가 최종 출하검사를 진행합니다.",
+  blocks:[
+    { type:"table", caption:"출하검사 기록", headers:["Lot ID","검사결과","검사자","검사일시","출하가능"],
+      rows:[["LOT-0823-CN8S-01",badge("합격","ok"),"품질부서 정OO","2026-08-24 08:55",badge("가능","ok")]]},
+  ]},
+
+{ num:16, key:"s16", nav:"출하", title:"출하", tab:"16_출하",
+  desc:"최종 출하를 확정하고 고객사에 전달합니다. 이 시점에서 1단계 발주부터의 전 구간 추적성이 완결됩니다.",
+  blocks:[
+    { type:"table", caption:"출하 기록", headers:["Lot ID","출하일시","목적지","수량","운송담당","출하증빙번호"],
+      rows:[["LOT-0823-CN8S-01","2026-08-24 09:10",CUSTOMER,"120 EA","물류 최OO","SHP-0824-001"]]},
+    { type:"note", text:"본 Lot(LOT-0823-CN8S-01)은 1단계 PO 접수부터 16단계 출하까지 전 구간이 하나의 ID 체계로 연결되어 추적됩니다 — SQ 심사가 요구하는 발주수량 → 최종출하수량 추적성이 이 대시보드 하나로 증빙됩니다." },
+  ]},
+
+];
+
+function badge(text, level){ return `<span class="badge2 ${level}">${text}</span>`; }
+
+/* ===================================================================
+   렌더링
+=================================================================== */
+function renderSide(){
+  const el = document.getElementById("sideList");
+  el.innerHTML = STEPS.map(s => `
+    <div class="side-item" id="nav-${s.key}" onclick="showStep('${s.key}')">
+      <div class="side-num">${s.num}</div>
+      <div class="side-label">${s.nav}</div>
+    </div>`).join("");
+}
+
+function renderBlock(b){
+  if(b.type === "note") return `<div class="note">${b.text}</div>`;
+  if(b.type === "flow") return `<div class="flowtext">${b.text}</div>`;
+  if(b.type === "formula") return `<div class="formula">${b.text.replace(/\n/g,"<br>")}</div>`;
+  if(b.type === "table"){
+    const isNumCol = (h) => /수량|CAPA|인원|일수|샘플수|불량수|Ac\(|Re\(/.test(h);
+    return `<table><caption>${b.caption}</caption><thead><tr>${
+      b.headers.map(h=>`<th>${h}</th>`).join("")
+    }</tr></thead><tbody>${
+      b.rows.map(r => `<tr>${r.map((v,i)=>`<td class="${isNumCol(b.headers[i])?'num-col':''}">${v}</td>`).join("")}</tr>`).join("")
+    }</tbody></table>`;
+  }
+  return "";
+}
+
+function showStep(key){
+  const idx = STEPS.findIndex(s=>s.key===key);
+  const s = STEPS[idx];
+  document.querySelectorAll(".side-item").forEach(el=>el.classList.remove("active"));
+  document.getElementById("nav-"+key).classList.add("active");
+
+  const prev = STEPS[idx-1], next = STEPS[idx+1];
+  const main = document.getElementById("main");
+  main.innerHTML = `
+    <div class="crumb">STC WIP 통합 운영 대시보드 <b>›</b> ${s.num}. ${s.nav}</div>
+    <div class="step-hd"><span class="n">${s.num}.</span><span class="t">${s.title}</span><span class="sheet-tag">${s.tab}</span></div>
+    <div class="step-desc">${s.desc}</div>
+    ${s.blocks.map(renderBlock).join("")}
+    <div class="linknav">
+      <span onclick="${prev?`showStep('${prev.key}')`:''}">${prev?`← ${prev.num}. ${prev.nav}`:''}</span>
+      <span onclick="${next?`showStep('${next.key}')`:''}">${next?`${next.num}. ${next.nav} →`:''}</span>
+    </div>
+  `;
+  window.scrollTo({top:0, behavior:"instant"});
+}
+
+renderSide();
+showStep("s1");
+</script>
+</body></html>
