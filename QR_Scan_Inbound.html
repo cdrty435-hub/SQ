@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>STC 2공장 입고검사 스캔</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:"Segoe UI",Arial,sans-serif;background:#f4f5f7;color:#111827;min-height:100vh;}
+
+#start{max-width:400px;margin:0 auto;padding:40px 20px;}
+.logo{text-align:center;font-size:48px;margin-bottom:8px;}
+.app-title{text-align:center;font-size:20px;font-weight:700;color:#1E2D5A;margin-bottom:4px;}
+.app-sub{text-align:center;font-size:12px;color:#6B7280;margin-bottom:28px;}
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:11px;font-weight:600;color:#6B7280;margin-bottom:5px;text-transform:uppercase;}
+.field input{width:100%;padding:12px 14px;border:1.5px solid #E2E4E9;border-radius:10px;font-size:15px;background:#fff;}
+.field input:focus{outline:none;border-color:#1E2D5A;}
+.start-btn{width:100%;padding:14px;border-radius:12px;background:#1E2D5A;color:#fff;font-size:16px;font-weight:700;border:none;cursor:pointer;margin-top:8px;}
+.start-btn:disabled{background:#9CA3AF;cursor:not-allowed;}
+.mode-note{font-size:11px;color:#9CA3AF;text-align:center;margin-top:10px;}
+
+#main{display:none;}
+.topbar{background:#1E2D5A;color:#fff;padding:11px 16px;display:flex;justify-content:space-between;align-items:center;}
+.tb-title{font-size:14px;font-weight:700;}
+.tb-sub{font-size:10px;color:#93a4c9;margin-top:2px;}
+.tb-clock{font-size:15px;font-weight:700;}
+
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:#E2E4E9;}
+.kpi-box{background:#fff;padding:10px 4px;text-align:center;}
+.kpi-val{font-size:18px;font-weight:700;}
+.kpi-lbl{font-size:9.5px;color:#6B7280;margin-top:1px;}
+
+.mode-row{display:flex;gap:8px;padding:10px 14px 0;}
+.mode-btn{flex:1;padding:11px;border-radius:10px;border:1.5px solid #E2E4E9;background:#fff;color:#111827;font-size:14px;font-weight:700;cursor:pointer;}
+.mode-btn.sel-pass{background:#0F6E56;border-color:#0F6E56;color:#fff;}
+.mode-btn.sel-fail{background:#B91C1C;border-color:#B91C1C;color:#fff;}
+
+.cam-wrap{padding:10px 14px;}
+.sec-lbl{font-size:10px;font-weight:600;color:#6B7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
+#qr-reader{width:100%;border-radius:10px;overflow:hidden;border:2px solid #1E2D5A;background:#000;}
+
+.result{display:none;margin:8px 14px 0;border-radius:10px;padding:12px;border:2px solid;}
+.result.ok    {background:#fff;border-color:#0F6E56;}
+.result.fail  {background:#fff;border-color:#B91C1C;}
+.result.err   {background:#FEE2E2;border-color:#FCA5A5;}
+.result.dup   {background:#FEF3C7;border-color:#FCD34D;}
+.r-name{font-size:14px;font-weight:700;color:#1E2D5A;margin-bottom:2px;}
+.r-sub{font-size:11px;color:#6B7280;margin-bottom:8px;}
+.r-msg{font-size:13px;font-weight:600;}
+.ok-txt{color:#0F6E56;}.err-txt{color:#B91C1C;}.warn-txt{color:#92400E;}
+
+.qty-badge{border-radius:8px;padding:8px 12px;margin:6px 0;display:flex;justify-content:space-between;align-items:center;color:#fff;}
+.qty-badge.pass{background:#0F6E56;}
+.qty-badge.fail{background:#B91C1C;}
+.qty-lbl{font-size:10px;color:rgba(255,255,255,.75);}
+.qty-num{font-size:22px;font-weight:700;}
+.qty-unit{font-size:11px;color:rgba(255,255,255,.75);}
+
+.prog-bg{height:10px;background:#E5E7EB;border-radius:5px;overflow:hidden;margin:4px 0;}
+.prog-fill{height:100%;border-radius:5px;transition:width .4s;}
+.fill-prog{background:#1D4ED8;}.fill-done{background:#0F6E56;}
+
+.save-btn{width:calc(100% - 28px);margin:8px 14px 0;padding:12px;border-radius:10px;color:#fff;font-size:14px;font-weight:700;border:none;cursor:pointer;display:none;}
+.save-btn.pass{background:#0F6E56;}
+.save-btn.fail{background:#B91C1C;}
+.save-btn:disabled{background:#9CA3AF;cursor:not-allowed;}
+
+.item-list-wrap{padding:8px 14px 90px;}
+.li{background:#fff;border-radius:10px;border:1px solid #E2E4E9;padding:10px 12px;margin-bottom:6px;display:flex;align-items:center;gap:10px;}
+.li.done{border-color:#6EE7B7;background:#F0FDF9;}
+.li.prog{border-color:#93C5FD;background:#EFF6FF;}
+.li.hasfail{border-color:#FCA5A5;}
+.li-info{flex:1;min-width:0;}
+.li-name{font-size:12px;font-weight:700;color:#1E2D5A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.li-code{font-size:10px;font-family:monospace;color:#6B7280;}
+.li-right{text-align:right;flex-shrink:0;}
+.li-qty{font-size:13px;font-weight:700;}
+.li-status{font-size:10px;font-weight:600;}
+.li-fail{font-size:10px;color:#B91C1C;font-weight:700;margin-top:2px;}
+.mini-bar{height:4px;background:#E5E7EB;border-radius:2px;overflow:hidden;margin-top:4px;min-width:60px;}
+.mini-fill{height:100%;border-radius:2px;}
+
+.export-btn{position:fixed;right:14px;bottom:14px;background:#1E2D5A;color:#fff;border:none;border-radius:50px;padding:12px 18px;font-size:12px;font-weight:700;box-shadow:0 4px 14px rgba(0,0,0,.25);cursor:pointer;}
+
+.loading{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:100;align-items:center;justify-content:center;flex-direction:column;gap:10px;}
+.loading.show{display:flex;}
+.spinner{width:36px;height:36px;border:4px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-txt{color:#fff;font-size:13px;font-weight:600;}
+
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:flex-end;}
+.modal-bg.show{display:flex;}
+.modal{background:#fff;width:100%;border-radius:16px 16px 0 0;padding:20px;max-height:80vh;overflow-y:auto;}
+.modal h3{font-size:15px;color:#1E2D5A;margin-bottom:10px;}
+.modal textarea{width:100%;height:140px;font-family:monospace;font-size:11px;border:1.5px solid #E2E4E9;border-radius:8px;padding:8px;}
+.modal-close{width:100%;padding:12px;border-radius:10px;background:#1E2D5A;color:#fff;border:none;font-weight:700;margin-top:10px;}
+</style>
+</head>
+<body>
+
+<div id="start">
+  <div class="logo">🔍</div>
+  <div class="app-title">STC 2공장 입고검사</div>
+  <div class="app-sub">1공장 출하 QR 스캔 · 합격/불합격 판정</div>
+  <div class="field">
+    <label>작업 날짜 *</label>
+    <input type="date" id="s-date">
+  </div>
+  <div class="field">
+    <label>검사자 이름 *</label>
+    <input id="s-worker" placeholder="이름" oninput="chkStart()">
+  </div>
+  <button class="start-btn" id="start-btn" disabled onclick="goMain()">📷 검사 시작</button>
+  <div class="mode-note">Sheet7_2공장입고검사 — 검사수량·합격수량·불합격수량이 자동 집계됩니다</div>
+</div>
+
+<div id="main">
+  <div class="topbar">
+    <div>
+      <div class="tb-title" id="t-worker">—</div>
+      <div class="tb-sub" id="t-date">—</div>
+    </div>
+    <div class="tb-clock" id="clock"></div>
+  </div>
+
+  <div class="kpi-row">
+    <div class="kpi-box"><div class="kpi-val" style="color:#1E2D5A" id="k-plan">0</div><div class="kpi-lbl">입고예정</div></div>
+    <div class="kpi-box"><div class="kpi-val" style="color:#0F6E56" id="k-pass">0</div><div class="kpi-lbl">합격</div></div>
+    <div class="kpi-box"><div class="kpi-val" style="color:#B91C1C" id="k-fail">0</div><div class="kpi-lbl">불합격</div></div>
+    <div class="kpi-box"><div class="kpi-val" style="color:#92400E" id="k-rate">-</div><div class="kpi-lbl">합격률</div></div>
+  </div>
+
+  <div class="mode-row">
+    <button class="mode-btn sel-pass" id="mode-pass-btn" onclick="setMode('PASS')">✅ 합격 스캔</button>
+    <button class="mode-btn" id="mode-fail-btn" onclick="setMode('FAIL')">❌ 불합격 스캔</button>
+  </div>
+
+  <div class="cam-wrap">
+    <div class="sec-lbl">📷 QR 스캔 — 박스 라벨을 카메라에 비추세요</div>
+    <div id="qr-reader"></div>
+  </div>
+
+  <div class="result" id="result"></div>
+
+  <button class="save-btn" id="save-btn" onclick="doSave()">✅ 저장</button>
+
+  <div class="item-list-wrap" id="box-list-wrap">
+    <div class="sec-lbl" style="margin-bottom:8px">모델별 입고검사 현황</div>
+    <ul style="list-style:none" id="item-list"></ul>
+  </div>
+
+  <button class="export-btn" onclick="openExport()">📋 Excel로 내보내기</button>
+</div>
+
+<div class="modal-bg" id="export-modal">
+  <div class="modal">
+    <h3>7_2공장입고검사 붙여넣기용 (탭 구분)</h3>
+    <div style="font-size:11px;color:#6B7280;margin-bottom:8px">아래 텍스트를 전체 복사해서 Excel의 실입고수량·검사수량·합격수량·불합격수량 칸에 붙여넣으세요 (모델 순서 동일).</div>
+    <textarea id="export-text" readonly onclick="this.select()"></textarea>
+    <button class="modal-close" onclick="closeExport()">닫기</button>
+  </div>
+</div>
+
+<div class="loading" id="loading">
+  <div class="spinner"></div>
+  <div class="loading-txt" id="loading-txt">처리 중...</div>
+</div>
+
+<script>
+// ── 실제 운영시 이 URL을 배포한 Apps Script 웹앱 URL로 바꾸세요 (백엔드_입고검사.gs 참고) ──
+// 비워두면 이 기기의 브라우저(localStorage)에만 기록되는 단독 모드로 동작합니다.
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx0Gh_2S1IofwLzEwPDxnlTnVbMZYFjfuqO98gREguP9uTgIG_qE0DvA2WLmwINK73AHQ/exec";
+const LOCAL_KEY = "stc_inbound_scan_log_v1";
+
+// 백엔드 미연결 시 기본 PLAN (1_고객사발주현황 · 모델 리스트 · 5_1공장납품계획 TOTAL 기준)
+const DEFAULT_PLAN = [
+  { qrKey:"BA",    partCode:"CR510-SUABAA-08", partName:"BA",    customer:"SADC", basic:"SADC", planQty:4200 },
+  { qrKey:"HS 15", partCode:"CR510-CD1AA-02",  partName:"HS 15", customer:"SADC", basic:"SADC", planQty:3200 },
+  { qrKey:"HS17",  partCode:"CR510-BBWBC-01",  partName:"HS17",  customer:"SADC", basic:"SADC", planQty:6500 },
+];
+
+let CFG  = { worker:"", date:"", mode:"PASS" };
+let PLAN = [];
+let scannedBoxes = new Set();
+let pending = null;
+let scanner = null;
+let lastQR  = ""; let lastT = 0;
+
+function localDateStr(d) {
+  d = d || new Date();
+  const y  = d.getFullYear();
+  const m  = String(d.getMonth()+1).padStart(2,"0");
+  const dd = String(d.getDate()).padStart(2,"0");
+  return `${y}-${m}-${dd}`;
+}
+
+document.getElementById("s-date").value = localDateStr();
+
+function chkStart() {
+  const w = document.getElementById("s-worker").value.trim();
+  document.getElementById("start-btn").disabled = !w;
+}
+
+async function goMain() {
+  CFG.worker = document.getElementById("s-worker").value.trim();
+  CFG.date   = document.getElementById("s-date").value || localDateStr();
+  document.getElementById("start").style.display = "none";
+  document.getElementById("main").style.display  = "block";
+  document.getElementById("t-worker").textContent = "검사자: " + CFG.worker;
+  document.getElementById("t-date").textContent   = CFG.date;
+  startClock();
+  await loadAll();
+  initCam();
+}
+
+function setMode(mode) {
+  CFG.mode = mode;
+  document.getElementById('mode-pass-btn').classList.toggle('sel-pass', mode==='PASS');
+  document.getElementById('mode-fail-btn').classList.toggle('sel-fail', mode==='FAIL');
+  document.getElementById("result").style.display = "none";
+  document.getElementById("save-btn").style.display = "none";
+  pending = null;
+}
+
+function startClock() {
+  const el = document.getElementById("clock");
+  const t  = () => el.textContent = new Date().toLocaleTimeString("ko-KR",{hour12:false});
+  t(); setInterval(t,1000);
+}
+
+// ── 로컬 저장소 (백엔드 미연결시) ──────────────
+function loadLocalLog() {
+  try { return JSON.parse(localStorage.getItem(LOCAL_KEY) || "[]"); } catch(e) { return []; }
+}
+function saveLocalLog(logs) {
+  localStorage.setItem(LOCAL_KEY, JSON.stringify(logs));
+}
+
+// ── 데이터 로드 ────────────────────────────────
+async function loadAll() {
+  showLoad("데이터 로딩 중...");
+  PLAN = DEFAULT_PLAN.map(p => ({...p, passEA:0, failEA:0}));
+
+  if (SCRIPT_URL) {
+    try {
+      const r1 = await fetch(SCRIPT_URL+"?action=getMaster");
+      const d1 = await r1.json();
+      if (d1.status==="ok" && d1.items && d1.items.length) {
+        PLAN = d1.items.map(p => ({...p, passEA:0, failEA:0}));
+      }
+      const r2 = await fetch(SCRIPT_URL+"?action=getScanLog&date="+CFG.date);
+      const d2 = await r2.json();
+      if (d2.status==="ok") applyLogs(d2.logs);
+    } catch(e) {}
+  } else {
+    applyLogs(loadLocalLog().filter(l => l.date === CFG.date));
+  }
+  hideLoad();
+  renderAll();
+}
+
+function applyLogs(logs) {
+  logs.forEach(log => {
+    const item = PLAN.find(p=>p.qrKey===log.qrKey);
+    if (!item) return;
+    if (log.boxId) scannedBoxes.add(String(log.boxId).trim());
+    if (log.result === "FAIL") item.failEA += (Number(log.qty)||0);
+    else                        item.passEA += (Number(log.qty)||0);
+  });
+}
+
+// ── 카메라 ────────────────────────────────────
+function initCam() {
+  scanner = new Html5Qrcode("qr-reader");
+  scanner.start(
+    {facingMode:"environment"},
+    {fps:12, qrbox:{width:220,height:220}},
+    onScan, ()=>{}
+  ).catch(()=>{
+    document.getElementById("qr-reader").innerHTML=
+      "<div style='padding:20px;text-align:center;color:#fff;font-size:13px'>카메라 접근 불가</div>";
+  });
+}
+
+function onScan(text) {
+  const now = Date.now();
+  if (text===lastQR && now-lastT<2500) return;
+  lastQR=text; lastT=now;
+  processScan(text);
+}
+
+// ── 스캔 처리: QR_KEY|수량|고유ID ──────────────
+function processScan(rawQR) {
+  pending = null;
+  const card = document.getElementById("result");
+  card.style.display = "block";
+  document.getElementById("save-btn").style.display = "none";
+
+  const parts = rawQR.split("|");
+  const qrKey = parts[0] ? parts[0].trim() : "";
+  const qty   = parseInt(parts[1]) || 1;
+  const boxId = parts[2] ? parts[2].trim() : null;
+
+  if (!qrKey || !boxId) {
+    card.className = "result err";
+    card.innerHTML = `<div class="r-name">❌ 인식할 수 없는 QR</div>
+      <div class="r-msg err-txt">입고검사 QR 형식이 아닙니다</div>`;
+    vibrate([200,100,200]);
+    return;
+  }
+
+  if (scannedBoxes.has(boxId)) {
+    card.className = "result dup";
+    card.innerHTML = `<div class="r-name">⚠ 중복 스캔</div>
+      <div class="r-sub">${boxId}</div>
+      <div class="r-msg warn-txt">이미 검사 완료된 박스입니다</div>`;
+    vibrate([100]);
+    return;
+  }
+
+  const item = PLAN.find(p=>p.qrKey===qrKey);
+  const planItem = item || {qrKey, partCode:qrKey, partName:qrKey, customer:"", planQty:null, passEA:0, failEA:0};
+  const isFail   = CFG.mode === "FAIL";
+  const planEA   = planItem.planQty || 0;
+  const curEA    = (planItem.passEA||0) + (planItem.failEA||0);
+  const afterEA  = curEA + qty;
+  const pct      = planEA ? Math.min(100, Math.round(afterEA/planEA*100)) : 0;
+
+  pending = {...planItem, rawQR, boxId, qty, result: isFail ? "FAIL" : "PASS"};
+
+  card.className = isFail ? "result fail" : "result ok";
+  card.innerHTML = `
+    <div class="r-name">${planItem.partName}</div>
+    <div class="r-sub">${planItem.partCode} | ${planItem.customer}${boxId?" | "+boxId:""}</div>
+    <div class="qty-badge ${isFail?'fail':'pass'}">
+      <div><div class="qty-lbl">이번 ${isFail?'불합격':'합격'}</div><div class="qty-num">${qty.toLocaleString()}</div></div>
+      <div style="text-align:right"><div class="qty-lbl">누적 검사</div><div class="qty-unit">${afterEA.toLocaleString()}/${planEA?planEA.toLocaleString():"?"}EA</div></div>
+    </div>
+    <div class="prog-bg"><div class="prog-fill ${pct>=100?"fill-done":"fill-prog"}" style="width:${pct}%"></div></div>`;
+
+  const saveBtn = document.getElementById("save-btn");
+  saveBtn.style.display = "block";
+  saveBtn.disabled = false;
+  saveBtn.className = "save-btn " + (isFail ? "fail" : "pass");
+  saveBtn.textContent = isFail ? "❌ 불합격으로 저장" : "✅ 합격으로 저장";
+  vibrate(isFail ? [80,40,80] : [50]);
+}
+
+async function doSave() {
+  if (!pending) return;
+  document.getElementById("save-btn").disabled = true;
+  await saveScan();
+}
+
+async function saveScan() {
+  showLoad("저장 중...");
+  const logEntry = {
+    qrKey: pending.qrKey, qty: pending.qty, boxId: pending.boxId,
+    result: pending.result, scanBy: CFG.worker, date: CFG.date,
+    ts: new Date().toISOString(),
+  };
+
+  if (SCRIPT_URL) {
+    try {
+      const res = await fetch(SCRIPT_URL, { method:"POST", body: JSON.stringify({ action:"scanInbound", ...logEntry }) });
+      const data = await res.json();
+      hideLoad();
+      if (!(data && data.status==="ok")) {
+        showSaveError((data&&data.msg)||"저장 거부됨");
+        return;
+      }
+    } catch(e) {
+      hideLoad();
+      showSaveError("네트워크 오류 — 다시 시도하세요");
+      return;
+    }
+  } else {
+    const logs = loadLocalLog();
+    logs.push(logEntry);
+    saveLocalLog(logs);
+    hideLoad();
+  }
+
+  scannedBoxes.add(pending.boxId);
+  const item = PLAN.find(p=>p.qrKey===pending.qrKey);
+  if (item) {
+    if (pending.result === "FAIL") item.failEA = (item.failEA||0) + pending.qty;
+    else                            item.passEA = (item.passEA||0) + pending.qty;
+  }
+  renderAll();
+
+  const card = document.getElementById("result");
+  card.className = "result ok";
+  card.innerHTML = `<div class="r-name">✅ 저장 완료</div>
+    <div class="r-sub">${pending.partName||pending.qrKey}</div>
+    <div class="r-msg ok-txt">검사 결과가 저장되었습니다</div>`;
+  document.getElementById("save-btn").style.display = "none";
+  vibrate([50,50,100]);
+  pending = null;
+}
+
+function showSaveError(msg) {
+  const card = document.getElementById("result");
+  card.className = "result err";
+  card.innerHTML = `<div class="r-name">❌ 저장 실패</div><div class="r-msg err-txt">${msg}</div>`;
+  document.getElementById("save-btn").disabled = false;
+  vibrate([200,100,200]);
+}
+
+function renderAll() {
+  const totalPlan = PLAN.reduce((s,p)=>s+(p.planQty||0),0);
+  const totalPass = PLAN.reduce((s,p)=>s+(p.passEA||0),0);
+  const totalFail = PLAN.reduce((s,p)=>s+(p.failEA||0),0);
+  const totalInsp = totalPass + totalFail;
+  document.getElementById("k-plan").textContent = totalPlan.toLocaleString();
+  document.getElementById("k-pass").textContent = totalPass.toLocaleString();
+  document.getElementById("k-fail").textContent = totalFail.toLocaleString();
+  document.getElementById("k-rate").textContent = totalInsp ? Math.round(totalPass/totalInsp*100)+"%" : "-";
+  renderItemList();
+}
+
+function renderItemList() {
+  const ul = document.getElementById("item-list");
+  if (!PLAN.length) {
+    ul.innerHTML = "<li style='text-align:center;color:#6B7280;font-size:12px;padding:16px'>등록된 모델이 없습니다</li>";
+    return;
+  }
+  ul.innerHTML = PLAN.map(p=>{
+    const plan  = p.planQty||0;
+    const pass  = p.passEA||0;
+    const fail  = p.failEA||0;
+    const total = pass+fail;
+    const done  = plan && total>=plan;
+    const prog  = total>0 && !done;
+    const pct   = plan ? Math.min(100, Math.round(total/plan*100)) : 0;
+    const qc    = done?"color:#0F6E56":prog?"color:#1D4ED8":"color:#B91C1C";
+    const st    = done?"✅ 검사완료":prog?total.toLocaleString()+"/"+plan.toLocaleString():"미검사";
+    const bc    = done?"fill-done":"fill-prog";
+    return `<li class="li ${done?"done":prog?"prog":""} ${fail?"hasfail":""}">
+      <div class="li-info">
+        <div class="li-name">${p.partName}</div>
+        <div class="li-code">${p.partCode}</div>
+        <div class="mini-bar"><div class="mini-fill ${bc}" style="width:${pct}%"></div></div>
+        ${fail?`<div class="li-fail">불합격 ${fail.toLocaleString()}EA</div>`:""}
+      </div>
+      <div class="li-right">
+        <div class="li-qty" style="${qc}">${total.toLocaleString()}<span style="font-size:9px;color:#6B7280">/${plan?plan.toLocaleString():"?"}</span></div>
+        <div class="li-status" style="${qc}">${st}</div>
+      </div>
+    </li>`;
+  }).join("");
+}
+
+// ── Excel 붙여넣기용 내보내기 ───────────────────
+function openExport() {
+  const rows = PLAN.map(p => {
+    const pass = p.passEA||0, fail = p.failEA||0, insp = pass+fail;
+    return [insp, pass].join("\t");   // 검사수량 \t 합격수량  (Excel F,G열 순서와 동일)
+  });
+  document.getElementById('export-text').value = rows.join("\n");
+  document.getElementById('export-modal').classList.add('show');
+}
+function closeExport() { document.getElementById('export-modal').classList.remove('show'); }
+
+function showLoad(t){ document.getElementById("loading-txt").textContent=t||"처리 중..."; document.getElementById("loading").classList.add("show"); }
+function hideLoad(){ document.getElementById("loading").classList.remove("show"); }
+function vibrate(p){ if(navigator.vibrate) navigator.vibrate(p); }
+</script>
+</body>
+</html>
