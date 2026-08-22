@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>배송 조회 / Track Shipment — STC</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root{--bg:#0b1015;--panel:#141c24;--panel2:#1b2530;--line:#26333f;--tx:#e8eff5;--mut:#7d8f9e;
+  --run:#f5a524;--ok:#2dd4a7;--bad:#ff5d5d;--info:#4cc2ff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);
+  font-family:-apple-system,"Segoe UI",Roboto,"Noto Sans KR","Noto Sans Thai",sans-serif}
+.wrap{max-width:760px;margin:0 auto;padding:26px 16px 60px}
+.mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}
+h1{font-size:19px;margin:0 0 4px;letter-spacing:.4px}
+h1 span{color:var(--run)}
+.sub{font-size:12.5px;color:var(--mut);margin:0 0 22px}
+.search{display:flex;gap:9px;margin-bottom:20px}
+.search input{flex:1;background:var(--panel2);border:1px solid var(--line);color:var(--tx);
+  border-radius:10px;padding:14px;font-size:15px;outline:none;font-family:inherit}
+.search input:focus{border-color:var(--info)}
+.search button{background:var(--run);border:0;color:#0b1015;font-weight:800;border-radius:10px;
+  padding:14px 24px;font-size:15px;cursor:pointer;font-family:inherit}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:14px}
+.head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:16px}
+.doNo{font-size:19px;font-weight:800;letter-spacing:.5px}
+.doNo small{display:block;font-size:12px;color:var(--mut);font-weight:400;margin-top:3px;letter-spacing:0}
+.pill{font-size:12px;font-weight:700;padding:6px 14px;border-radius:99px}
+.pill.run{background:rgba(245,165,36,.15);color:var(--run)}
+.pill.ok{background:rgba(45,212,167,.15);color:var(--ok)}
+.pill.idle{background:rgba(125,143,158,.15);color:var(--mut)}
+
+/* 진행 단계 */
+.steps{display:flex;margin:6px 0 4px}
+.step{flex:1;text-align:center;position:relative;font-size:11px;color:var(--mut)}
+.step::before{content:'';position:absolute;top:9px;left:-50%;width:100%;height:2px;background:var(--line)}
+.step:first-child::before{display:none}
+.step .d{width:20px;height:20px;border-radius:50%;background:var(--panel2);border:2px solid var(--line);
+  margin:0 auto 8px;position:relative;z-index:1;display:flex;align-items:center;justify-content:center;font-size:10px}
+.step.done .d{background:var(--ok);border-color:var(--ok);color:#0b1015}
+.step.done::before{background:var(--ok)}
+.step.now .d{background:var(--run);border-color:var(--run);color:#0b1015}
+.step.now::before{background:var(--run)}
+.step.done,.step.now{color:var(--tx);font-weight:600}
+
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:18px}
+.kpi{background:var(--panel2);border-radius:11px;padding:14px 10px;text-align:center}
+.kpi b{display:block;font-size:21px;font-weight:800;letter-spacing:-.5px}
+.kpi i{display:block;font-size:10.5px;color:var(--mut);font-style:normal;margin-top:4px}
+#map{height:330px;border-radius:12px;border:1px solid var(--line);background:#0e141a}
+.leaflet-container{background:#0e141a}
+.note{font-size:11.5px;color:var(--mut);margin-top:12px;line-height:1.6}
+.msg{text-align:center;color:var(--mut);padding:44px 20px;font-size:13.5px;line-height:1.8}
+.msg b{color:var(--bad)}
+.hide{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>STC <span>배송 조회</span> / Track Shipment</h1>
+  <p class="sub">DO 번호를 입력하면 현재 위치와 도착 예정을 확인할 수 있습니다.</p>
+
+  <div class="search">
+    <input id="code" placeholder="DO-260822-01" autocomplete="off">
+    <button id="go">조회</button>
+  </div>
+
+  <div id="out"></div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+'use strict';
+var P = new URLSearchParams(location.search);
+var API = P.get('api') || '';
+var map = null, mk = null, dm = null, timer = null;
+
+var Q = function(i){ return document.getElementById(i); };
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+
+var STEPS = ['접수','출발','운송중','도착','완료'];
+function stepIndex(st){
+  if (st === '완료') return 4;
+  if (st === '도착') return 3;
+  if (st === '운송중') return 2;
+  if (st === '출발') return 1;
+  return 0;
+}
+
+function lookup(){
+  var code = Q('code').value.trim();
+  if (!code) return;
+  if (!API) { Q('out').innerHTML = '<div class="msg"><b>서버가 설정되지 않았습니다.</b><br>주소 끝에 ?api=... 를 붙여 주세요.</div>'; return; }
+  history.replaceState(null,'','?api='+encodeURIComponent(API)+'&code='+encodeURIComponent(code));
+  Q('out').innerHTML = '<div class="msg">조회 중…</div>';
+
+  fetch(API + '?action=track&code=' + encodeURIComponent(code), { redirect:'follow' })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (!d.ok) throw new Error(d.error || 'error');
+      if (!d.found) { Q('out').innerHTML = '<div class="msg"><b>조회 결과가 없습니다.</b><br>DO 번호를 다시 확인해 주세요.</div>'; return; }
+      draw(d);
+      if (timer) clearInterval(timer);
+      if (d.status === '출발' || d.status === '운송중') timer = setInterval(silent, 30000);
+    })
+    .catch(function(e){ Q('out').innerHTML = '<div class="msg"><b>연결 실패</b><br>'+esc(e.message)+'</div>'; });
+}
+
+function silent(){
+  fetch(API + '?action=track&code=' + encodeURIComponent(Q('code').value.trim()), { redirect:'follow' })
+    .then(function(r){ return r.json(); })
+    .then(function(d){ if (d.ok && d.found) update(d); }).catch(function(){});
+}
+
+function draw(d){
+  var idx = stepIndex(d.status);
+  var pill = idx >= 3 ? 'ok' : idx >= 1 ? 'run' : 'idle';
+  Q('out').innerHTML =
+    '<div class="card">' +
+      '<div class="head"><div class="doNo">'+esc(d.doNo||'—')+
+        '<small>'+esc(d.customer||'')+' · 도착지 '+esc(d.destName||'—')+'</small></div>' +
+        '<div class="pill '+pill+'" id="pill">'+esc(d.status||'—')+'</div></div>' +
+      '<div class="steps">' + STEPS.map(function(s,i){
+          var c = i < idx ? 'done' : i === idx ? 'now' : '';
+          return '<div class="step '+c+'"><div class="d">'+(i<idx?'✓':'')+'</div>'+s+'</div>';
+        }).join('') + '</div>' +
+      '<div class="kpis">' +
+        '<div class="kpi"><b class="mono" id="kEta">—</b><i>도착예정 (분)</i></div>' +
+        '<div class="kpi"><b class="mono" id="kLeft">—</b><i>남은거리 (km)</i></div>' +
+        '<div class="kpi"><b class="mono" id="kAt">—</b><i>최종 수신</i></div>' +
+      '</div></div>' +
+    '<div class="card"><div id="map"></div>' +
+      '<p class="note">지도는 30초마다 자동 갱신됩니다. 위치는 차량 단말 기준이며 통신 상태에 따라 지연될 수 있습니다.</p></div>';
+
+  map = L.map('map', { zoomControl:true }).setView([d.lat||13.3, d.lng||101.0], 11);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    { maxZoom:20, attribution:'&copy; OpenStreetMap, &copy; CARTO' }).addTo(map);
+  update(d);
+}
+
+function update(d){
+  if (d.eta) { Q('kEta').textContent = d.eta.etaMin; Q('kLeft').textContent = d.eta.remainKm; }
+  else { Q('kEta').textContent = d.status === '완료' || d.status === '도착' ? '도착' : '—'; Q('kLeft').textContent = '—'; }
+  Q('kAt').textContent = d.lastAt ? d.lastAt.slice(11,16) : '—';
+  Q('pill').textContent = d.status || '—';
+  if (!map) return;
+
+  if (d.destLat && !dm) {
+    dm = L.circleMarker([d.destLat, d.destLng], { radius:8, color:'#2dd4a7', fillColor:'#2dd4a7', fillOpacity:.85 })
+      .addTo(map).bindTooltip('도착지 ' + (d.destName||''), { permanent:false });
+  }
+  if (d.lat && d.lng) {
+    var ico = L.divIcon({ className:'', iconSize:[30,30], iconAnchor:[15,15],
+      html:'<div style="width:30px;height:30px;border-radius:50%;background:#f5a524;border:2px solid #0b1015;'+
+           'display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 2px 8px rgba(0,0,0,.6)">🚚</div>' });
+    if (mk) mk.setLatLng([d.lat, d.lng]); else mk = L.marker([d.lat, d.lng], { icon:ico }).addTo(map);
+    var b = [[d.lat, d.lng]];
+    if (d.destLat) b.push([d.destLat, d.destLng]);
+    map.fitBounds(L.latLngBounds(b).pad(0.35), { maxZoom:14 });
+  }
+}
+
+Q('go').onclick = lookup;
+Q('code').addEventListener('keydown', function(e){ if (e.key === 'Enter') lookup(); });
+if (P.get('code')) { Q('code').value = P.get('code'); lookup(); }
+</script>
+</body>
+</html>

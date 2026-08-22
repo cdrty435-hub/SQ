@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0b1015">
+<title>STC ส่งของ / 배송 GPS</title>
+<style>
+:root{
+  --bg:#0b1015; --panel:#141c24; --panel2:#1b2530; --line:#26333f;
+  --tx:#e8eff5; --mut:#7d8f9e;
+  --run:#f5a524; --ok:#2dd4a7; --bad:#ff5d5d; --info:#4cc2ff;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%}
+body{
+  background:var(--bg);color:var(--tx);
+  font-family:-apple-system,"Segoe UI",Roboto,"Noto Sans Thai","Noto Sans KR",sans-serif;
+  padding:calc(env(safe-area-inset-top) + 10px) 12px calc(env(safe-area-inset-bottom) + 16px);
+}
+.mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}
+header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.brand{font-weight:800;letter-spacing:.5px;font-size:15px}
+.brand span{color:var(--run)}
+.badge{font-size:11px;padding:4px 9px;border-radius:99px;border:1px solid var(--line);color:var(--mut)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+label{display:block;font-size:11px;color:var(--mut);margin:0 0 5px;letter-spacing:.4px;text-transform:uppercase}
+input,select,textarea{
+  width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--tx);
+  border-radius:10px;padding:13px 12px;font-size:16px;font-family:inherit;outline:none
+}
+input:focus,select:focus{border-color:var(--info)}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.f{margin-bottom:11px}
+button{
+  width:100%;border:0;border-radius:12px;padding:17px;font-size:17px;font-weight:800;
+  font-family:inherit;color:#0b1015;background:var(--run);letter-spacing:.3px
+}
+button:active{transform:scale(.985)}
+button[disabled]{opacity:.4}
+.btn-stop{background:var(--bad);color:#fff}
+.btn-ghost{background:transparent;color:var(--mut);border:1px solid var(--line);font-size:14px;padding:13px;font-weight:600}
+.btn-ok{background:var(--ok)}
+
+/* 운행 화면 */
+.live{text-align:center;padding:22px 14px}
+.pulse{
+  width:74px;height:74px;border-radius:50%;margin:0 auto 14px;
+  background:radial-gradient(circle,var(--run) 0 32%,transparent 33%);
+  box-shadow:0 0 0 0 rgba(245,165,36,.55);animation:pw 2s infinite
+}
+.pulse.stop{background:radial-gradient(circle,var(--mut) 0 32%,transparent 33%);animation:none;box-shadow:none}
+.pulse.arr{background:radial-gradient(circle,var(--ok) 0 32%,transparent 33%);animation:none;box-shadow:0 0 0 12px rgba(45,212,167,.12)}
+@keyframes pw{0%{box-shadow:0 0 0 0 rgba(245,165,36,.5)}70%{box-shadow:0 0 0 26px rgba(245,165,36,0)}100%{box-shadow:0 0 0 0 rgba(245,165,36,0)}}
+.state{font-size:23px;font-weight:800;letter-spacing:.5px}
+.state small{display:block;font-size:12px;font-weight:500;color:var(--mut);margin-top:4px;letter-spacing:0}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:16px}
+.kpi{background:var(--panel2);border-radius:11px;padding:11px 6px}
+.kpi b{display:block;font-size:20px;font-weight:800;letter-spacing:-.5px}
+.kpi i{display:block;font-size:10px;color:var(--mut);font-style:normal;margin-top:3px;letter-spacing:.3px}
+.meta{display:flex;justify-content:space-between;font-size:12px;color:var(--mut);padding:9px 2px;border-bottom:1px solid var(--line)}
+.meta:last-child{border:0}
+.meta b{color:var(--tx);font-weight:600}
+.warn{background:rgba(255,93,93,.12);border:1px solid rgba(255,93,93,.35);color:#ffb3b3;
+  border-radius:10px;padding:11px;font-size:13px;line-height:1.5;margin-bottom:11px}
+.tip{background:rgba(76,194,255,.1);border:1px solid rgba(76,194,255,.3);color:#bfe6ff;
+  border-radius:10px;padding:11px;font-size:12.5px;line-height:1.55;margin-bottom:11px}
+.hide{display:none!important}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;vertical-align:middle}
+.acc-good{background:var(--ok)}.acc-mid{background:var(--run)}.acc-bad{background:var(--bad)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">STC <span>DELIVERY</span> GPS</div>
+  <div class="badge" id="netBadge">—</div>
+</header>
+
+<!-- ===== 설정 / 출발 ===== -->
+<div id="setupView">
+  <div class="card">
+    <div class="f">
+      <label>Server URL / 서버 주소</label>
+      <input id="api" placeholder="https://script.google.com/macros/s/.../exec">
+    </div>
+    <div class="row">
+      <div class="f">
+        <label>คนขับ / 기사</label>
+        <select id="driver"><option value="">— เลือก —</option></select>
+      </div>
+      <div class="f">
+        <label>ทะเบียนรถ / 차량번호</label>
+        <input id="vehicle" placeholder="70-1234">
+      </div>
+    </div>
+    <div class="row">
+      <div class="f">
+        <label>DO No. / 출하번호</label>
+        <input id="doNo" placeholder="DO-260822-01">
+      </div>
+      <div class="f">
+        <label>ลูกค้า / 고객</label>
+        <input id="customer" placeholder="SADC">
+      </div>
+    </div>
+    <div class="f">
+      <label>ปลายทาง / 도착지</label>
+      <select id="dest"><option value="">— เลือก —</option></select>
+    </div>
+    <div class="row">
+      <div class="f">
+        <label>เก็บพิกัดทุก / 샘플 주기</label>
+        <select id="sampleSec">
+          <option value="10">10 วินาที / 초</option>
+          <option value="15" selected>15 วินาที / 초</option>
+          <option value="30">30 วินาที / 초</option>
+        </select>
+      </div>
+      <div class="f">
+        <label>ส่งทุก / 전송 묶음</label>
+        <select id="batchN">
+          <option value="3">3 จุด / 개</option>
+          <option value="5" selected>5 จุด / 개</option>
+          <option value="10">10 จุด / 개</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="tip">
+    📱 <b>วางมือถือบนแท่นวางและเสียบสายชาร์จ</b> — หน้าจอต้องเปิดตลอดการเดินทาง<br>
+    거치대에 두고 충전 연결 — 운행 중 화면이 꺼지면 GPS가 중단됩니다.
+  </div>
+
+  <button id="btnStart">▶  เริ่มเดินทาง / 운행 시작</button>
+</div>
+
+<!-- ===== 운행 중 ===== -->
+<div id="liveView" class="hide">
+  <div class="card live">
+    <div class="pulse" id="pulse"></div>
+    <div class="state" id="stateTx">กำลังเดินทาง<small>운송중</small></div>
+
+    <div class="grid3">
+      <div class="kpi"><b class="mono" id="kSpeed">0</b><i>km/h</i></div>
+      <div class="kpi"><b class="mono" id="kDist">0.0</b><i>km ระยะทาง</i></div>
+      <div class="kpi"><b class="mono" id="kLeft">—</b><i>km เหลือ</i></div>
+    </div>
+  </div>
+
+  <div class="card" style="padding:6px 14px">
+    <div class="meta"><span>สัญญาณ GPS / 정확도</span><b><span class="dot" id="accDot"></span><span id="mAcc" class="mono">—</span></b></div>
+    <div class="meta"><span>ส่งล่าสุด / 마지막 전송</span><b id="mSent" class="mono">—</b></div>
+    <div class="meta"><span>รอส่ง / 대기</span><b id="mQ" class="mono">0</b></div>
+    <div class="meta"><span>สำเร็จ / ผิดพลาด</span><b class="mono"><span id="mOk">0</span> / <span id="mErr">0</span></b></div>
+    <div class="meta"><span>DO / ปลายทาง</span><b id="mDo">—</b></div>
+  </div>
+
+  <div id="arrBox" class="hide"></div>
+  <button id="btnArrive" class="btn-ok" style="margin-bottom:10px">✔  ถึงแล้ว / 도착 완료</button>
+  <button id="btnStop" class="btn-stop btn-ghost" style="color:#ff9b9b;border-color:rgba(255,93,93,.4)">■  หยุด / 중지</button>
+</div>
+
+<div id="err" class="warn hide" style="margin-top:12px"></div>
+
+<script>
+'use strict';
+var Q = function(id){ return document.getElementById(id); };
+var params = new URLSearchParams(location.search);
+
+var S = {
+  api: '', tripId: '', dest: null, sampleSec: 15, batchN: 5,
+  queue: [], ok: 0, err: 0, distKm: 0, sending: false,
+  watchId: null, timer: null, wake: null, lastFix: null, lastPushed: 0, arrived: false
+};
+
+/* ---------- 초기값: URL 파라미터 우선 ---------- */
+['api','driver','vehicle','doNo','customer','dest','sampleSec','batchN'].forEach(function(k){
+  var v = params.get(k); if (v && Q(k)) Q(k).value = v;
+});
+if (!Q('api').value) { try { Q('api').value = localStorage.getItem('stc_api') || ''; } catch(e){} }
+
+function showErr(msg){ var e = Q('err'); e.textContent = msg; e.classList.remove('hide'); }
+function hideErr(){ Q('err').classList.add('hide'); }
+
+/* ---------- 서버 통신 ---------- */
+function post(body){
+  return fetch(S.api, {
+    method:'POST', mode:'cors', redirect:'follow',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},  // preflight 회피
+    body: JSON.stringify(body)
+  }).then(function(r){ return r.json(); });
+}
+function get(qs){
+  return fetch(S.api + '?' + qs, {method:'GET', redirect:'follow'}).then(function(r){ return r.json(); });
+}
+
+/* ---------- 마스터 로딩 ---------- */
+function loadMaster(){
+  var api = Q('api').value.trim();
+  if (!api) return;
+  S.api = api;
+  try { localStorage.setItem('stc_api', api); } catch(e){}
+  get('action=bootstrap').then(function(d){
+    if (!d.ok) return showErr('Server: ' + (d.error||'error'));
+    hideErr();
+    var ds = Q('driver'), keep = ds.value;
+    ds.innerHTML = '<option value="">— เลือก / 선택 —</option>';
+    (d.drivers||[]).forEach(function(x){
+      var o = document.createElement('option');
+      o.value = x.driverId;
+      o.textContent = (x.nameTh || x.name) + ' (' + x.driverId + ')';
+      o.dataset.name = x.name || x.nameTh || x.driverId;
+      o.dataset.veh = x.vehicleNo || '';
+      ds.appendChild(o);
+    });
+    ds.value = keep;
+    var st = Q('dest'), k2 = st.value;
+    st.innerHTML = '<option value="">— เลือก / 선택 —</option>';
+    (d.sites||[]).forEach(function(x){
+      if (x.type === 'ORIGIN') return;
+      var o = document.createElement('option');
+      o.value = x.siteId; o.textContent = (x.nameTh || x.name);
+      o.dataset.lat = x.lat; o.dataset.lng = x.lng;
+      st.appendChild(o);
+    });
+    st.value = k2;
+  }).catch(function(e){ showErr('เชื่อมต่อไม่ได้ / 연결 실패: ' + e.message); });
+}
+Q('api').addEventListener('change', loadMaster);
+Q('driver').addEventListener('change', function(){
+  var o = this.selectedOptions[0];
+  if (o && o.dataset.veh && !Q('vehicle').value) Q('vehicle').value = o.dataset.veh;
+});
+if (Q('api').value) loadMaster();
+
+/* ---------- 화면 켜짐 유지 ---------- */
+function keepAwake(){
+  if (!('wakeLock' in navigator)) return;
+  navigator.wakeLock.request('screen').then(function(l){
+    S.wake = l;
+    l.addEventListener('release', function(){ S.wake = null; });
+  }).catch(function(){});
+}
+document.addEventListener('visibilitychange', function(){
+  if (document.visibilityState === 'visible' && S.tripId && !S.wake) keepAwake();
+});
+
+/* ---------- 출발 ---------- */
+Q('btnStart').onclick = function(){
+  S.api = Q('api').value.trim();
+  if (!S.api) return showErr('กรุณาใส่ Server URL / 서버 주소를 입력하세요');
+  if (!Q('vehicle').value.trim()) return showErr('กรุณาใส่ทะเบียนรถ / 차량번호를 입력하세요');
+  if (!navigator.geolocation) return showErr('อุปกรณ์ไม่รองรับ GPS / 이 기기는 GPS 미지원');
+
+  S.sampleSec = Number(Q('sampleSec').value);
+  S.batchN = Number(Q('batchN').value);
+
+  var dopt = Q('dest').selectedOptions[0];
+  var drv = Q('driver').selectedOptions[0];
+  var body = {
+    action:'start',
+    doNo: Q('doNo').value.trim(),
+    customer: Q('customer').value.trim(),
+    driverId: Q('driver').value,
+    driverName: drv ? (drv.dataset.name || '') : '',
+    vehicleNo: Q('vehicle').value.trim(),
+    originName: 'STC',
+    destSiteId: Q('dest').value
+  };
+  if (dopt && dopt.dataset.lat) { body.destLat = +dopt.dataset.lat; body.destLng = +dopt.dataset.lng; body.destName = dopt.textContent; }
+
+  this.disabled = true; this.textContent = '⏳ กำลังเริ่ม...';
+  post(body).then(function(d){
+    Q('btnStart').disabled = false; Q('btnStart').textContent = '▶  เริ่มเดินทาง / 운행 시작';
+    if (!d.ok) return showErr(d.error || 'start failed');
+    hideErr();
+    S.tripId = d.tripId; S.dest = d.dest;
+    Q('mDo').textContent = (body.doNo || '—') + ' → ' + (d.dest.name || '—');
+    Q('setupView').classList.add('hide');
+    Q('liveView').classList.remove('hide');
+    history.replaceState(null, '', '?api=' + encodeURIComponent(S.api) + '&trip=' + encodeURIComponent(S.tripId));
+    startTracking();
+  }).catch(function(e){
+    Q('btnStart').disabled = false; Q('btnStart').textContent = '▶  เริ่มเดินทาง / 운행 시작';
+    showErr('ส่งไม่สำเร็จ / 전송 실패: ' + e.message);
+  });
+};
+
+/* ---------- GPS ---------- */
+function startTracking(){
+  keepAwake();
+  S.watchId = navigator.geolocation.watchPosition(onFix, onGpsErr, {
+    enableHighAccuracy: true, maximumAge: 3000, timeout: 20000
+  });
+  S.timer = setInterval(sample, S.sampleSec * 1000);
+  if (navigator.getBattery) navigator.getBattery().then(function(b){ S.bat = Math.round(b.level*100); });
+  setInterval(flush, 8000);
+  setInterval(netBadge, 3000); netBadge();
+}
+
+function onFix(pos){
+  S.lastFix = pos;
+  var c = pos.coords;
+  var kmh = c.speed != null ? Math.max(0, Math.round(c.speed * 3.6)) : 0;
+  Q('kSpeed').textContent = kmh;
+  var acc = Math.round(c.accuracy);
+  Q('mAcc').textContent = acc + ' m';
+  var d = Q('accDot');
+  d.className = 'dot ' + (acc <= 20 ? 'acc-good' : acc <= 60 ? 'acc-mid' : 'acc-bad');
+  if (S.dest && S.dest.lat) {
+    Q('kLeft').textContent = hav(c.latitude, c.longitude, +S.dest.lat, +S.dest.lng).toFixed(1);
+  }
+}
+function onGpsErr(e){
+  var m = { 1:'ไม่ได้อนุญาตตำแหน่ง / 위치 권한 거부됨', 2:'หาสัญญาณไม่ได้ / 신호 없음', 3:'หมดเวลา / 시간 초과' };
+  showErr('GPS: ' + (m[e.code] || e.message));
+}
+
+function sample(){
+  if (!S.lastFix) return;
+  var c = S.lastFix.coords, t = S.lastFix.timestamp;
+  if (t === S.lastPushed) return;      // 새 fix 없으면 스킵
+  S.lastPushed = t;
+  S.queue.push({
+    lat:+c.latitude.toFixed(6), lng:+c.longitude.toFixed(6),
+    acc: Math.round(c.accuracy),
+    spd: c.speed != null ? Math.round(c.speed*3.6) : 0,
+    hdg: c.heading != null && !isNaN(c.heading) ? Math.round(c.heading) : '',
+    ts: new Date(t).toISOString(), bat: S.bat || ''
+  });
+  Q('mQ').textContent = S.queue.length;
+  if (S.queue.length >= S.batchN) flush();
+}
+
+function flush(){
+  if (S.sending || !S.queue.length || !S.tripId) return;
+  if (!navigator.onLine) return;
+  S.sending = true;
+  var batch = S.queue.slice(0, 30);
+  post({ action:'ping', tripId:S.tripId, vehicleNo:Q('vehicle').value.trim(), points:batch })
+    .then(function(d){
+      S.sending = false;
+      if (!d.ok) { S.err++; Q('mErr').textContent = S.err; return; }
+      S.queue.splice(0, batch.length);
+      S.ok += batch.length;
+      Q('mOk').textContent = S.ok;
+      Q('mQ').textContent = S.queue.length;
+      Q('mSent').textContent = new Date().toTimeString().slice(0,8);
+      if (d.distanceKm != null) Q('kDist').textContent = Number(d.distanceKm).toFixed(1);
+      if (d.arrived && !S.arrived) markArrived();
+    })
+    .catch(function(){
+      S.sending = false; S.err++; Q('mErr').textContent = S.err;
+      if (S.queue.length > 900) S.queue.splice(0, 300);   // 메모리 보호
+    });
+}
+
+function markArrived(){
+  S.arrived = true;
+  Q('pulse').className = 'pulse arr';
+  Q('stateTx').innerHTML = 'ถึงปลายทางแล้ว<small>목적지 도착</small>';
+  if (navigator.vibrate) navigator.vibrate([200,100,200,100,400]);
+}
+
+Q('btnArrive').onclick = function(){
+  if (!confirm('ยืนยันส่งของเสร็จแล้ว?\n배송 완료로 처리할까요?')) return;
+  finish('완료');
+};
+Q('btnStop').onclick = function(){
+  if (!confirm('หยุดติดตาม?\n추적을 중지할까요?')) return;
+  finish('중지');
+};
+
+function finish(note){
+  flush();
+  setTimeout(function(){
+    post({ action:'finish', tripId:S.tripId, note:note }).catch(function(){});
+    if (S.watchId != null) navigator.geolocation.clearWatch(S.watchId);
+    if (S.timer) clearInterval(S.timer);
+    if (S.wake) { try { S.wake.release(); } catch(e){} }
+    Q('pulse').className = 'pulse stop';
+    Q('stateTx').innerHTML = 'เสร็จสิ้น<small>운행 종료</small>';
+    Q('btnArrive').classList.add('hide');
+    Q('btnStop').textContent = '↻ เริ่มใหม่ / 새 운행';
+    Q('btnStop').onclick = function(){ location.href = location.pathname + '?api=' + encodeURIComponent(S.api); };
+  }, 900);
+}
+
+function netBadge(){
+  var b = Q('netBadge');
+  if (!navigator.onLine) { b.textContent = '⚠ OFFLINE'; b.style.color = '#ff5d5d'; return; }
+  b.textContent = S.tripId ? '● ONLINE' : '○ READY';
+  b.style.color = S.tripId ? '#2dd4a7' : '#7d8f9e';
+}
+
+function hav(a,b,c,d){
+  var R=6371,r=Math.PI/180,x=(c-a)*r,y=(d-b)*r;
+  var s=Math.sin(x/2)*Math.sin(x/2)+Math.cos(a*r)*Math.cos(c*r)*Math.sin(y/2)*Math.sin(y/2);
+  return R*2*Math.atan2(Math.sqrt(s),Math.sqrt(1-s));
+}
+
+window.addEventListener('beforeunload', function(e){
+  if (S.tripId && !S.arrived) { e.preventDefault(); e.returnValue = ''; }
+});
+</script>
+</body>
+</html>
