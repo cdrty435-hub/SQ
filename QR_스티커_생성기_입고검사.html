@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>STC QR MAKER — 입고검사용</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+:root{
+  --navy:#1E2D5A;--green:#0F6E56;--greenL:#D1FAE5;
+  --red:#B91C1C;--redL:#FEE2E2;--blue:#1D4ED8;--blueL:#EFF6FF;
+  --amber:#92400E;--amberL:#FFFBEB;
+  --gray:#F4F5F7;--border:#E2E4E9;--text:#111827;--muted:#6B7280;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',Arial,sans-serif;background:var(--gray);color:var(--text);}
+.header{background:var(--navy);color:#fff;padding:13px 24px;}
+.h-title{font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px;}
+.h-ver{font-size:10px;font-weight:700;background:var(--green);color:#fff;padding:2px 8px;border-radius:10px;letter-spacing:.3px;}
+.h-sub{font-size:11px;color:#93a4c9;margin-top:4px;}
+.h-sub .lbl-th{display:block;font-size:13px;color:#C7D2FE;font-weight:600;margin-top:2px;}
+.main{max-width:960px;margin:0 auto;padding:20px 16px;}
+.card{background:#fff;border-radius:12px;border:1px solid var(--border);padding:18px;margin-bottom:14px;}
+.card-title{font-size:13px;font-weight:700;color:var(--navy);margin-bottom:2px;}
+.card-title .lbl-th{display:block;font-size:15px;color:var(--green);font-weight:700;margin-bottom:12px;margin-top:2px;}
+.form-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.field label{display:block;font-size:10px;font-weight:600;color:var(--muted);margin-bottom:1px;text-transform:uppercase;letter-spacing:.4px;}
+.field label .lbl-th{display:block;font-size:14px;color:var(--navy);font-weight:700;text-transform:none;letter-spacing:0;margin-top:1px;margin-bottom:3px;}
+.field input,.field select{width:100%;padding:9px 11px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;}
+.field input:focus,.field select:focus{outline:none;border-color:var(--navy);}
+.size-row{display:flex;align-items:center;gap:12px;margin-top:12px;}
+.size-lbl{font-size:11px;font-weight:600;color:var(--muted);white-space:nowrap;}
+.size-lbl .lbl-th{display:block;font-size:13px;color:var(--navy);font-weight:700;}
+.size-slider{flex:1;accent-color:var(--navy);}
+.size-val{font-size:13px;font-weight:700;color:var(--navy);min-width:50px;}
+.btn-th{display:block;font-size:14px;font-weight:700;margin-top:1px;}
+.btn-kr{display:block;font-size:11px;font-weight:600;opacity:.85;}
+.search-wrap{position:relative;}
+.add-row{display:flex;gap:8px;margin-bottom:8px;}
+.search-input{flex:1;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:monospace;}
+.search-input:focus{outline:none;border-color:var(--navy);}
+.add-btn{padding:10px 16px;border-radius:8px;background:var(--navy);color:#fff;border:none;font-size:13px;font-weight:600;cursor:pointer;}
+.drop{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--border);border-radius:8px;max-height:200px;overflow-y:auto;z-index:50;display:none;box-shadow:0 4px 12px rgba(0,0,0,.1);}
+.drop.show{display:block;}
+.drop-item{padding:8px 12px;cursor:pointer;border-bottom:1px solid #F3F4F6;font-size:12px;}
+.drop-item:hover{background:var(--gray);}
+.item-card{background:var(--gray);border-radius:10px;border:1px solid var(--border);padding:14px;margin-bottom:10px;}
+.item-card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;}
+.item-name{font-size:13px;font-weight:700;color:var(--navy);}
+.item-code{font-size:11px;font-family:monospace;color:var(--muted);margin-top:2px;}
+.item-del{background:var(--redL);color:var(--red);border:none;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;}
+.qty-auto-row{display:flex;gap:8px;margin-bottom:10px;align-items:flex-end;}
+.qty-auto-row .field{flex:1;}
+.auto-btn{padding:9px 14px;border-radius:8px;background:var(--green);color:#fff;border:none;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;}
+.boxes-wrap{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;}
+.box-input-wrap{display:flex;align-items:center;gap:3px;}
+.box-no{font-size:10px;color:var(--muted);min-width:18px;}
+.box-input{width:72px;padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;font-weight:700;text-align:center;color:var(--navy);}
+.box-input:focus{outline:none;border-color:var(--navy);}
+.box-del{background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0 2px;}
+.box-del:hover{color:var(--red);}
+.add-box-btn{padding:6px 12px;border-radius:6px;border:1.5px dashed var(--border);background:#fff;color:var(--muted);font-size:12px;cursor:pointer;}
+.qty-summary{font-size:11px;color:var(--muted);margin-top:6px;}
+.qty-summary b{color:var(--navy);}
+.gen-btn{width:100%;padding:13px;border-radius:10px;background:var(--green);color:#fff;font-size:15px;font-weight:700;border:none;cursor:pointer;margin-bottom:14px;}
+.gen-btn:disabled{background:var(--muted);cursor:not-allowed;}
+
+.reprint-panel{background:#fff;border-radius:12px;border:1px solid var(--border);padding:18px;margin-bottom:14px;display:none;}
+.reprint-title{font-size:13px;font-weight:700;color:var(--navy);margin-bottom:10px;}
+.reprint-list{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;}
+.rp-btn{padding:5px 10px;border-radius:6px;border:1.5px solid var(--border);background:#fff;font-size:12px;cursor:pointer;font-family:monospace;}
+.rp-btn:hover{background:var(--blueL);border-color:var(--blue);}
+.rp-btn.selected{background:var(--navy);color:#fff;border-color:var(--navy);}
+.rp-print-btn{padding:9px 20px;border-radius:8px;background:var(--red);color:#fff;border:none;font-size:13px;font-weight:600;cursor:pointer;}
+
+.preview-card{background:#fff;border-radius:12px;border:1px solid var(--border);padding:18px;display:none;}
+.preview-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px;}
+.preview-title{font-size:13px;font-weight:700;color:var(--navy);}
+.btn-row{display:flex;gap:8px;}
+.print-btn{padding:9px 20px;border-radius:8px;background:var(--navy);color:#fff;border:none;font-size:13px;font-weight:600;cursor:pointer;}
+.sticker-grid{display:grid;gap:8px;}
+
+.sticker{border:1.5px solid #CBD5E1;border-radius:6px;overflow:hidden;background:#fff;break-inside:avoid;}
+.s-hdr{padding:5px 8px;display:flex;justify-content:space-between;align-items:center;}
+.s-hdr-left{font-size:10px;font-weight:700;color:#fff;}
+.s-hdr-right{font-size:9px;color:rgba(255,255,255,.8);}
+.s-body{padding:8px;display:flex;gap:10px;align-items:center;}
+.s-qr{flex-shrink:0;}
+.s-info{flex:1;min-width:0;}
+.s-name{font-size:11px;font-weight:700;color:var(--navy);line-height:1.3;margin-bottom:3px;}
+.s-code{font-family:monospace;font-size:10px;color:var(--green);font-weight:700;margin-bottom:3px;}
+.s-key{font-family:monospace;font-size:7px;color:var(--muted);word-break:break-all;margin-bottom:4px;}
+.s-qty-badge{background:var(--navy);color:#fff;border-radius:6px;padding:5px 8px;text-align:center;}
+.s-qty-label{font-size:8px;color:rgba(255,255,255,.7);display:block;}
+.s-qty-num{font-size:20px;font-weight:700;display:block;line-height:1.1;}
+.s-qty-unit{font-size:9px;color:rgba(255,255,255,.7);}
+.s-box-info{font-size:9px;color:rgba(255,255,255,.6);margin-top:2px;}
+.s-footer{font-size:8px;color:var(--muted);padding:3px 8px;border-top:1px solid #F3F4F6;display:flex;justify-content:space-between;}
+.sticker-cancel-btn{position:absolute;top:4px;right:4px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,.35);color:#fff;border:none;font-size:11px;line-height:18px;text-align:center;cursor:pointer;z-index:5;padding:0;}
+.sticker-cancel-btn:hover{background:var(--red);}
+
+@media print{
+  body{background:#fff;}
+  .header,.main>.card,.gen-btn,.reprint-panel{display:none!important;}
+  .preview-card{display:block!important;border:none;padding:0;margin:0;}
+  .preview-header{display:none!important;}
+  .sticker-grid{gap:3mm;}
+  .sticker{border:0.5px solid #CBD5E1;}
+  .sticker-cancel-btn{display:none!important;}
+  @page{size:A4;margin:8mm;}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="h-title">🏷️ STC QR MAKER <span class="h-ver">입고검사용</span></div>
+  <div class="h-sub">1공장 출하박스에 부착 → 2공장 입고검사 스캔용 QR입니다. 박스별 수량이 QR에 포함되어 스캔 즉시 실입고수량에 반영됩니다.
+    <span class="lbl-th">ติดที่กล่องขาออกจากโรงงาน 1 → ใช้สแกนตรวจรับที่โรงงาน 2 จำนวนต่อกล่องอยู่ใน QR</span>
+  </div>
+</div>
+
+<div class="main">
+
+<div class="card">
+  <div class="card-title">⚙️ 기본 설정<span class="lbl-th">การตั้งค่าพื้นฐาน</span></div>
+  <div class="form-grid">
+    <div class="field">
+      <label>회사명<span class="lbl-th">ชื่อบริษัท</span></label>
+      <input id="company" value="STC Co., Ltd.">
+    </div>
+    <div class="field">
+      <label>출하일자<span class="lbl-th">วันที่ส่งออก</span></label>
+      <input type="date" id="shipdate">
+    </div>
+    <div class="field">
+      <label>열 수 (A4 기준)<span class="lbl-th">จำนวนคอลัมน์ (A4)</span></label>
+      <select id="cols">
+        <option value="1">1열(크게) 1 คอลัมน์(ใหญ่)</option>
+        <option value="2">2열 2 คอลัมน์</option>
+        <option value="3" selected>3열 3 คอลัมน์</option>
+        <option value="4">4열(작게) 4 คอลัมน์(เล็ก)</option>
+      </select>
+    </div>
+  </div>
+  <div class="size-row">
+    <span class="size-lbl">QR 크기<span class="lbl-th">ขนาด QR</span></span>
+    <input class="size-slider" type="range" id="qr-size" min="60" max="200" value="110"
+      oninput="document.getElementById('size-val').textContent=this.value+'px'">
+    <span class="size-val" id="size-val">110px</span>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-title">📦 품목 추가<span class="lbl-th">เพิ่มรายการสินค้า</span></div>
+  <div class="search-wrap">
+    <div class="add-row">
+      <input class="search-input" id="qr-input"
+        placeholder="모델 또는 PART CODE 검색/입력 · ค้นหา/กรอกรุ่นหรือ PART CODE"
+        oninput="searchMaster()" onkeydown="if(event.key==='Enter') addItem()">
+      <button class="add-btn" onclick="addItem()" style="padding:6px 16px">
+        <span class="btn-kr">＋ 추가</span><span class="btn-th" style="font-size:13px">เพิ่ม</span>
+      </button>
+    </div>
+    <div class="drop" id="master-drop"></div>
+  </div>
+  <div style="font-size:11px;color:var(--muted);margin:6px 0 10px">
+    등록된 모델: <b id="master-count">0</b>개 — 목록에 없으면 직접 입력해도 추가됩니다.
+    <span style="display:block;font-size:12px;color:var(--navy);font-weight:600;margin-top:2px">รุ่นที่ลงทะเบียน: <b id="master-count-th">0</b> รุ่น — พิมพ์เองได้หากไม่มีในรายการ</span>
+  </div>
+  <div id="item-list">
+    <div style="text-align:center;color:var(--muted);font-size:13px;padding:16px">
+      위에서 품목을 검색해서 추가하세요<br>
+      <span style="font-size:14px;color:var(--navy);font-weight:600">ค้นหาสินค้าด้านบนแล้วเพิ่มรายการ</span>
+    </div>
+  </div>
+</div>
+
+<button class="gen-btn" id="gen-btn" disabled onclick="generate()">
+  <span class="btn-kr" style="font-size:15px">🏷️ 입고검사 QR 스티커 생성</span><span class="btn-th" style="font-size:16px">สร้างสติกเกอร์ QR ตรวจรับ</span>
+</button>
+
+<div class="reprint-panel" id="reprint-panel">
+  <div class="reprint-title">🔄 유실 스티커 재출력<span style="display:block;font-size:14px;color:var(--green);font-weight:700;margin-top:2px">พิมพ์สติกเกอร์ที่สูญหายใหม่</span></div>
+  <div style="font-size:12px;color:var(--muted);margin-bottom:10px">재출력할 박스를 선택하세요 (복수 선택 가능)<span style="display:block;font-size:13px;color:var(--navy);font-weight:600;margin-top:2px">เลือกกล่องที่ต้องการพิมพ์ใหม่ (เลือกได้หลายรายการ)</span></div>
+  <div class="reprint-list" id="reprint-list"></div>
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <button class="rp-print-btn" onclick="reprintSelected()">
+      <span class="btn-kr">🖨️ 선택 스티커 재출력</span><span class="btn-th" style="font-size:13px">พิมพ์สติกเกอร์ที่เลือก</span>
+    </button>
+    <button onclick="selectAllReprint()" style="padding:6px 14px;border-radius:8px;border:1px solid var(--border);background:#fff;cursor:pointer">
+      <span class="btn-kr" style="color:var(--text)">전체 선택</span><span class="btn-th" style="font-size:12px;color:var(--navy)">เลือกทั้งหมด</span>
+    </button>
+    <button onclick="clearReprintSelect()" style="padding:6px 14px;border-radius:8px;border:1px solid var(--border);background:#fff;cursor:pointer">
+      <span class="btn-kr" style="color:var(--text)">전체 해제</span><span class="btn-th" style="font-size:12px;color:var(--navy)">ยกเลิกทั้งหมด</span>
+    </button>
+  </div>
+</div>
+
+<div class="preview-card" id="preview-card">
+  <div class="preview-header">
+    <div class="preview-title">🖨️ 스티커 미리보기 — 총 <span id="total-stickers">0</span>장
+      <span style="display:block;font-size:14px;color:var(--green);font-weight:700;margin-top:2px">ตัวอย่างสติกเกอร์ — รวม <span id="total-stickers-th">0</span> แผ่น</span>
+    </div>
+    <div class="btn-row">
+      <button class="print-btn" onclick="window.print()">
+        <span class="btn-kr">🖨️ 전체 인쇄</span><span class="btn-th" style="font-size:13px">พิมพ์ทั้งหมด</span>
+      </button>
+      <button onclick="resetBoxQR()" style="padding:6px 16px;border-radius:8px;background:var(--redL);color:var(--red);border:1.5px solid #FCA5A5;cursor:pointer">
+        <span class="btn-kr">🗑️ 초기화</span><span class="btn-th" style="font-size:13px">ล้างข้อมูล</span>
+      </button>
+    </div>
+  </div>
+  <div class="sticker-grid" id="sticker-grid"></div>
+</div>
+
+</div>
+
+<script>
+// ── 실제 운영시 이 URL을 배포한 Apps Script 웹앱 URL로 바꾸세요 (백엔드_입고검사.gs 참고) ──
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx0Gh_2S1IofwLzEwPDxnlTnVbMZYFjfuqO98gREguP9uTgIG_qE0DvA2WLmwINK73AHQ/exec";
+
+// 백엔드 미연결 시 기본 마스터(1_고객사발주현황 · 모델 리스트 기준)
+const DEFAULT_MASTER = [
+  { qrKey:"BA",    partCode:"CR510-SUABAA-08", partName:"BA",    customer:"SADC", basic:"SADC" },
+  { qrKey:"HS 15", partCode:"CR510-CD1AA-02",  partName:"HS 15", customer:"SADC", basic:"SADC" },
+  { qrKey:"HS17",  partCode:"CR510-BBWBC-01",  partName:"HS17",  customer:"SADC", basic:"SADC" },
+];
+
+let MASTER = [];
+let ITEMS  = [];
+let ALL_STICKERS = [];
+let qrCache = {};
+let rpSelected = new Set();
+
+document.getElementById('shipdate').valueAsDate = new Date();
+
+window.onload = async () => {
+  MASTER = DEFAULT_MASTER;
+  if (SCRIPT_URL) {
+    try {
+      const res  = await fetch(`${SCRIPT_URL}?action=getMaster`);
+      const data = await res.json();
+      if (data.status === 'ok' && data.items && data.items.length) MASTER = data.items;
+    } catch(e) {}
+  }
+  document.getElementById('master-count').textContent = MASTER.length;
+  document.getElementById('master-count-th').textContent = MASTER.length;
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.search-wrap')) {
+      document.getElementById('master-drop').classList.remove('show');
+    }
+  });
+};
+
+function searchMaster() {
+  const q    = document.getElementById('qr-input').value.trim().toLowerCase();
+  const drop = document.getElementById('master-drop');
+  if (!q) { drop.classList.remove('show'); return; }
+  const res = MASTER.filter(m =>
+    m.qrKey.toLowerCase().includes(q) ||
+    m.partCode.toLowerCase().includes(q) ||
+    m.partName.toLowerCase().includes(q)
+  ).slice(0,12);
+  if (!res.length) { drop.classList.remove('show'); return; }
+  drop.innerHTML = res.map(m => `
+    <div class="drop-item" onclick="selectItem('${m.qrKey}')">
+      <div style="font-weight:600">${m.partName}</div>
+      <div style="font-family:monospace;font-size:11px;color:var(--muted)">${m.partCode} | ${m.customer}</div>
+    </div>`).join('');
+  drop.classList.add('show');
+}
+
+function selectItem(qrKey) {
+  document.getElementById('qr-input').value = qrKey;
+  document.getElementById('master-drop').classList.remove('show');
+  addItem();
+}
+
+function addItem() {
+  const val = document.getElementById('qr-input').value.trim();
+  if (!val) return;
+  if (ITEMS.find(i => i.qrKey === val)) { alert('이미 추가된 품목입니다.'); return; }
+  const found = MASTER.find(m => m.qrKey === val || m.partCode === val);
+  if (found) {
+    ITEMS.push({ qrKey:found.qrKey, partCode:found.partCode, partName:found.partName, customer:found.customer, basic:found.basic||'', boxes:[1] });
+  } else {
+    ITEMS.push({ qrKey:val, partCode:val, partName:val, customer:'', basic:'', boxes:[1] });
+  }
+  document.getElementById('qr-input').value = '';
+  document.getElementById('master-drop').classList.remove('show');
+  renderItems();
+}
+
+function autoSplit(idx) {
+  const total  = parseInt(document.getElementById(`at-${idx}`).value) || 0;
+  const perBox = parseInt(document.getElementById(`ap-${idx}`).value) || 0;
+  if (!total || !perBox) return;
+  const boxes = [];
+  let rem = total;
+  while (rem > 0) { boxes.push(Math.min(rem, perBox)); rem -= perBox; }
+  ITEMS[idx].boxes = boxes;
+  renderItems();
+}
+
+function addBox(idx)      { ITEMS[idx].boxes.push(1); renderItems(); }
+function delBox(idx, bi)  { if (ITEMS[idx].boxes.length>1) { ITEMS[idx].boxes.splice(bi,1); renderItems(); } }
+function updateBox(idx,bi,v) { ITEMS[idx].boxes[bi]=parseInt(v)||0; updateSum(idx); }
+function delItem(idx)     { ITEMS.splice(idx,1); renderItems(); }
+
+function updateSum(idx) {
+  const total = ITEMS[idx].boxes.reduce((s,v)=>s+v,0);
+  const el = document.getElementById(`sum-${idx}`);
+  if (el) el.innerHTML = `박스 <b>${ITEMS[idx].boxes.length}개</b> &nbsp;|&nbsp; 총 수량 <b>${total.toLocaleString()}개</b>
+    <span style="display:block;font-size:13px;color:var(--navy);font-weight:600;margin-top:2px">กล่อง <b>${ITEMS[idx].boxes.length}</b> ใบ &nbsp;|&nbsp; รวม <b>${total.toLocaleString()}</b> ชิ้น</span>`;
+}
+
+function renderItems() {
+  const wrap = document.getElementById('item-list');
+  if (!ITEMS.length) {
+    wrap.innerHTML = `<div style="text-align:center;color:var(--muted);font-size:13px;padding:16px">
+      위에서 품목을 검색해서 추가하세요<br>
+      <span style="font-size:14px;color:var(--navy);font-weight:600">ค้นหาสินค้าด้านบนแล้วเพิ่มรายการ</span>
+    </div>`;
+    document.getElementById('gen-btn').disabled = true;
+    return;
+  }
+  wrap.innerHTML = ITEMS.map((item,idx) => {
+    const total = item.boxes.reduce((s,v)=>s+v,0);
+    const boxInputs = item.boxes.map((b,bi) => `
+      <div class="box-input-wrap">
+        <span class="box-no">${bi+1}</span>
+        <input class="box-input" type="number" value="${b}" min="0"
+          onchange="updateBox(${idx},${bi},this.value)"
+          oninput="updateBox(${idx},${bi},this.value)">
+        <button class="box-del" onclick="delBox(${idx},${bi})">✕</button>
+      </div>`).join('');
+    return `
+    <div class="item-card">
+      <div class="item-card-top">
+        <div>
+          <div class="item-name">${item.partName}</div>
+          <div class="item-code">${item.partCode} ${item.customer?'| '+item.customer:''}</div>
+        </div>
+        <button class="item-del" onclick="delItem(${idx})" style="text-align:center;line-height:1.3">
+          <span style="display:block">✕ 삭제</span><span style="display:block;font-size:12px;font-weight:700">ลบ</span>
+        </button>
+      </div>
+      <div class="qty-auto-row">
+        <div class="field"><label>총 수량<span class="lbl-th">จำนวนรวม</span></label><input id="at-${idx}" type="number" placeholder="예) 4200" style="font-weight:700"></div>
+        <div class="field"><label>박스당 수량<span class="lbl-th">จำนวนต่อกล่อง</span></label><input id="ap-${idx}" type="number" placeholder="예) 500" style="font-weight:700"></div>
+        <button class="auto-btn" onclick="autoSplit(${idx})" style="text-align:center;line-height:1.3">
+          <span style="display:block">자동 분할</span><span style="display:block;font-size:12px;font-weight:700">แบ่งอัตโนมัติ</span>
+        </button>
+      </div>
+      <div class="boxes-wrap">${boxInputs}
+        <button class="add-box-btn" onclick="addBox(${idx})" style="text-align:center;line-height:1.3">
+          <span style="display:block">＋ 박스 추가</span><span style="display:block;font-size:11px;font-weight:600;color:var(--navy)">เพิ่มกล่อง</span>
+        </button>
+      </div>
+      <div class="qty-summary" id="sum-${idx}">박스 <b>${item.boxes.length}개</b> &nbsp;|&nbsp; 총 수량 <b>${total.toLocaleString()}개</b>
+        <span style="display:block;font-size:13px;color:var(--navy);font-weight:600;margin-top:2px">กล่อง <b>${item.boxes.length}</b> ใบ &nbsp;|&nbsp; รวม <b>${total.toLocaleString()}</b> ชิ้น</span>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('gen-btn').disabled = false;
+}
+
+function makeQR(text, size) {
+  return new Promise(resolve => {
+    const div = document.createElement('div');
+    div.style.display = 'none';
+    document.body.appendChild(div);
+    new QRCode(div, { text, width:size, height:size, correctLevel:QRCode.CorrectLevel.M });
+    setTimeout(() => {
+      const img = div.querySelector('img') || div.querySelector('canvas');
+      const url = img ? (img.src || img.toDataURL()) : '';
+      document.body.removeChild(div);
+      resolve(url);
+    }, 300);
+  });
+}
+
+// QR 인코딩: PART_CODE(또는 모델)|수량|고유박스ID  — 스캔 앱과 동일 형식
+function buildStickers() {
+  const stickers = [];
+  ITEMS.forEach((item) => {
+    const validBoxes = item.boxes.filter(b => b > 0);
+    const totalQty   = validBoxes.reduce((s,v)=>s+v,0);
+    validBoxes.forEach((qty, bi) => {
+      const ds    = new Date().toISOString().slice(2,10).replace(/-/g,"");
+      const seq   = String(bi+1).padStart(3,"0");
+      const rand  = Math.random().toString(36).slice(2,6).toUpperCase();
+      const boxId = `IN${ds}${seq}${rand}`;
+      const qrData = `${item.qrKey}|${qty}|${boxId}`;
+      stickers.push({ ...item, qty, boxNo:bi+1, totalBox:validBoxes.length, totalQty, boxId, qrData });
+    });
+  });
+  return stickers;
+}
+
+function stickerHTML(s, qrSize, idx) {
+  const hdrBg    = s.customer ? '#92400E' : '#1E2D5A';
+  const nameShort = s.partName.length>28 ? s.partName.slice(0,26)+'...' : s.partName;
+  const company   = document.getElementById('company').value.trim() || 'STC Co., Ltd.';
+  const shipdate  = document.getElementById('shipdate').value || new Date().toISOString().slice(0,10);
+  const cancelBtn = (idx !== undefined)
+    ? `<button class="sticker-cancel-btn" onclick="cancelSticker(${idx})" title="이 스티커 취소">✕</button>`
+    : '';
+
+  return `
+  <div class="sticker" data-qrdata="${s.qrData}" style="position:relative">
+    ${cancelBtn}
+    <div class="s-hdr" style="background:${hdrBg}">
+      <span class="s-hdr-left">📦 ${s.customer||'STC'} &nbsp; ${s.boxId} (${s.boxNo}/${s.totalBox})</span>
+      <span class="s-hdr-right">1공장→2공장 입고검사</span>
+    </div>
+    <div class="s-body">
+      <div class="s-qr">
+        <img src="${qrCache[s.qrData]||''}" width="${qrSize}" height="${qrSize}" style="display:block;image-rendering:pixelated">
+      </div>
+      <div class="s-info">
+        <div class="s-name">${nameShort}</div>
+        <div class="s-code">${s.partCode}</div>
+        <div class="s-key">${s.qrData}</div>
+        <div class="s-qty-badge" style="background:${hdrBg}">
+          <span class="s-qty-label">수량 / QTY</span>
+          <span class="s-qty-num">${s.qty.toLocaleString()}</span>
+          <span class="s-qty-unit">EA &nbsp; (총 ${s.totalQty.toLocaleString()}EA)</span>
+          <div class="s-box-info">BOX ${s.boxNo} / ${s.totalBox}</div>
+        </div>
+      </div>
+    </div>
+    <div class="s-footer">
+      <span>${company}</span>
+      <span>${shipdate}</span>
+    </div>
+  </div>`;
+}
+
+async function generate() {
+  if (!ITEMS.length) return;
+  const btn = document.getElementById('gen-btn');
+  btn.disabled = true; btn.innerHTML = '<span class="btn-kr">생성 중...</span><span class="btn-th" style="font-size:14px">กำลังสร้าง...</span>';
+
+  const cols    = parseInt(document.getElementById('cols').value);
+  const qrSize  = parseInt(document.getElementById('qr-size').value);
+
+  ALL_STICKERS = buildStickers();
+  document.getElementById('total-stickers').textContent = ALL_STICKERS.length;
+  document.getElementById('total-stickers-th').textContent = ALL_STICKERS.length;
+
+  qrCache = {};
+  for (const s of ALL_STICKERS) {
+    if (!qrCache[s.qrData]) qrCache[s.qrData] = await makeQR(s.qrData, qrSize);
+  }
+
+  const grid = document.getElementById('sticker-grid');
+  grid.style.gridTemplateColumns = `repeat(${cols},1fr)`;
+  grid.innerHTML = ALL_STICKERS.map((s,i) => stickerHTML(s, qrSize, i)).join('');
+
+  renderReprintPanel();
+
+  document.getElementById('preview-card').style.display = 'block';
+  document.getElementById('reprint-panel').style.display = 'block';
+  document.getElementById('preview-card').scrollIntoView({behavior:'smooth'});
+  btn.disabled = false;
+  btn.innerHTML = '<span class="btn-kr" style="font-size:15px">🏷️ 입고검사 QR 스티커 생성</span><span class="btn-th" style="font-size:16px">สร้างสติกเกอร์ QR ตรวจรับ</span>';
+}
+
+function cancelSticker(idx) {
+  const s = ALL_STICKERS[idx];
+  if (!s) return;
+  if (!confirm(`이 스티커를 취소하시겠습니까?\n${s.boxId} (${s.qty.toLocaleString()}EA)`)) return;
+  ALL_STICKERS.splice(idx, 1);
+  const qrSize = parseInt(document.getElementById('qr-size').value);
+  const cols   = parseInt(document.getElementById('cols').value);
+  document.getElementById('total-stickers').textContent = ALL_STICKERS.length;
+  document.getElementById('total-stickers-th').textContent = ALL_STICKERS.length;
+  const grid = document.getElementById('sticker-grid');
+  grid.innerHTML = ALL_STICKERS.map((s2,i) => stickerHTML(s2, qrSize, i)).join('');
+  renderReprintPanel();
+  if (!ALL_STICKERS.length) {
+    document.getElementById('preview-card').style.display = 'none';
+    document.getElementById('reprint-panel').style.display = 'none';
+  }
+}
+
+function resetBoxQR() {
+  if (!confirm('스티커 목록을 초기화하시겠습니까?')) return;
+  ITEMS = []; ALL_STICKERS = []; qrCache = {}; rpSelected.clear();
+  document.getElementById('preview-card').style.display = 'none';
+  document.getElementById('reprint-panel').style.display = 'none';
+  document.getElementById('sticker-grid').innerHTML = '';
+  renderItems();
+}
+
+function renderReprintPanel() {
+  rpSelected.clear();
+  const list = document.getElementById('reprint-list');
+  list.innerHTML = ALL_STICKERS.map((s,i) => `
+    <button class="rp-btn" id="rp-${i}" onclick="toggleRP(${i})">
+      ${s.partCode}<br><span style="font-size:10px">${s.boxId} · ${s.qty.toLocaleString()}EA</span>
+    </button>`).join('');
+}
+
+function toggleRP(i) {
+  const btn = document.getElementById(`rp-${i}`);
+  if (rpSelected.has(i)) { rpSelected.delete(i); btn.classList.remove('selected'); }
+  else { rpSelected.add(i); btn.classList.add('selected'); }
+}
+
+function selectAllReprint()   { ALL_STICKERS.forEach((_,i) => { rpSelected.add(i); document.getElementById(`rp-${i}`).classList.add('selected'); }); }
+function clearReprintSelect() { ALL_STICKERS.forEach((_,i) => { rpSelected.delete(i); document.getElementById(`rp-${i}`).classList.remove('selected'); }); }
+
+async function reprintSelected() {
+  if (!rpSelected.size) { alert('재출력할 스티커를 선택하세요.'); return; }
+  const qrSize = parseInt(document.getElementById('qr-size').value);
+  const cols   = parseInt(document.getElementById('cols').value);
+  const selected = [...rpSelected].sort((a,b)=>a-b).map(i => ALL_STICKERS[i]);
+  for (const s of selected) {
+    if (!qrCache[s.qrData]) qrCache[s.qrData] = await makeQR(s.qrData, qrSize);
+  }
+  const win = window.open('','_blank');
+  win.document.write(`
+    <!DOCTYPE html><html><head><meta charset="UTF-8">
+    <title>재출력 — ${selected.map(s=>s.boxId).join(', ')}</title>
+    <style>
+      *{box-sizing:border-box;margin:0;padding:0;}
+      body{font-family:'Segoe UI',Arial,sans-serif;}
+      .grid{display:grid;grid-template-columns:repeat(${cols},1fr);gap:4mm;padding:8mm;}
+      ${document.querySelector('style').textContent}
+    </style></head><body>
+    <div class="grid">${selected.map(s => stickerHTML(s, qrSize)).join('')}</div>
+    <script>window.onload=()=>window.print()<\/script>
+    </body></html>`);
+  win.document.close();
+}
+</script>
+</body>
+</html>
