@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>STC 배송 관제 / Delivery Control</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root{
+  --bg:#0b1015; --panel:#141c24; --panel2:#1b2530; --line:#26333f;
+  --tx:#e8eff5; --mut:#7d8f9e;
+  --run:#f5a524; --ok:#2dd4a7; --bad:#ff5d5d; --info:#4cc2ff; --idle:#5a6b7a;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden}
+body{
+  background:var(--bg);color:var(--tx);
+  font-family:-apple-system,"Segoe UI",Roboto,"Noto Sans KR","Noto Sans Thai",sans-serif;
+  display:grid;grid-template-rows:52px 1fr;
+}
+.mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}
+
+/* topbar */
+.top{display:flex;align-items:center;gap:16px;padding:0 16px;background:var(--panel);border-bottom:1px solid var(--line)}
+.logo{font-weight:800;font-size:15px;letter-spacing:.6px;white-space:nowrap}
+.logo span{color:var(--run)}
+.stats{display:flex;gap:8px;margin-left:4px}
+.st{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:4px 11px;font-size:11px;color:var(--mut);white-space:nowrap}
+.st b{font-size:15px;color:var(--tx);margin-right:5px;font-weight:800}
+.st.run b{color:var(--run)} .st.ok b{color:var(--ok)} .st.bad b{color:var(--bad)}
+.spacer{flex:1}
+.top input{background:var(--panel2);border:1px solid var(--line);color:var(--tx);border-radius:8px;
+  padding:7px 11px;font-size:12px;width:280px;outline:none;font-family:inherit}
+.top button{background:var(--panel2);border:1px solid var(--line);color:var(--mut);border-radius:8px;
+  padding:7px 12px;font-size:12px;cursor:pointer;font-family:inherit}
+.top button:hover{color:var(--tx);border-color:var(--info)}
+.tick{font-size:11px;color:var(--mut);white-space:nowrap}
+.tick b{color:var(--ok)}
+
+/* layout */
+.main{display:grid;grid-template-columns:322px 1fr;min-height:0}
+.side{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+.tabs{display:flex;border-bottom:1px solid var(--line);flex:none}
+.tab{flex:1;padding:11px;text-align:center;font-size:12px;color:var(--mut);cursor:pointer;border-bottom:2px solid transparent}
+.tab.on{color:var(--tx);border-bottom-color:var(--run);background:var(--panel2)}
+.list{overflow-y:auto;flex:1;padding:8px}
+.list::-webkit-scrollbar{width:7px}
+.list::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px}
+
+.trip{background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--idle);
+  border-radius:10px;padding:11px 12px;margin-bottom:7px;cursor:pointer;transition:border-color .12s}
+.trip:hover{border-color:var(--info)}
+.trip.sel{border-color:var(--info);background:#1f2c39}
+.trip.s-run{border-left-color:var(--run)} .trip.s-arr{border-left-color:var(--ok)}
+.trip.s-fin{border-left-color:var(--idle);opacity:.62} .trip.s-stale{border-left-color:var(--bad)}
+.t1{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.veh{font-weight:800;font-size:14px;letter-spacing:.3px}
+.stt{font-size:10px;padding:2px 8px;border-radius:99px;font-weight:700;white-space:nowrap}
+.stt.run{background:rgba(245,165,36,.16);color:var(--run)}
+.stt.arr{background:rgba(45,212,167,.16);color:var(--ok)}
+.stt.fin{background:rgba(90,107,122,.2);color:var(--mut)}
+.stt.stale{background:rgba(255,93,93,.16);color:var(--bad)}
+.t2{font-size:11.5px;color:var(--mut);margin-top:5px;line-height:1.6}
+.t2 b{color:var(--tx);font-weight:600}
+.t3{display:flex;gap:12px;margin-top:7px;font-size:10.5px;color:var(--mut)}
+.t3 b{color:var(--tx);font-weight:700;font-size:12px}
+.empty{color:var(--mut);font-size:12.5px;text-align:center;padding:44px 20px;line-height:1.7}
+
+#map{width:100%;height:100%;background:#0e141a}
+.leaflet-container{background:#0e141a;font-family:inherit}
+.leaflet-popup-content-wrapper{background:var(--panel);color:var(--tx);border-radius:10px;border:1px solid var(--line)}
+.leaflet-popup-tip{background:var(--panel);border:1px solid var(--line)}
+.leaflet-popup-content{margin:11px 13px;font-size:12.5px;line-height:1.7}
+.leaflet-popup-content b{color:var(--run)}
+.leaflet-popup-content a{color:var(--info)}
+.leaflet-bar a{background:var(--panel);color:var(--tx);border-color:var(--line)}
+.leaflet-bar a:hover{background:var(--panel2)}
+.leaflet-control-layers{background:var(--panel);color:var(--tx);border:1px solid var(--line)}
+
+.veh-ico{display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;
+  font-size:14px;border:2px solid #0b1015;box-shadow:0 2px 8px rgba(0,0,0,.6)}
+.veh-lbl{position:absolute;top:31px;left:50%;transform:translateX(-50%);white-space:nowrap;
+  background:rgba(11,16,21,.88);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+  font-size:10px;font-weight:700;color:#e8eff5;font-family:ui-monospace,monospace}
+.site-lbl{background:rgba(11,16,21,.85);border:1px solid var(--line);border-radius:5px;padding:2px 7px;
+  font-size:10.5px;color:var(--mut);white-space:nowrap}
+.setup{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(11,16,21,.96);z-index:1200}
+.setup .box{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:26px;width:440px;max-width:90vw}
+.setup h3{margin:0 0 6px;font-size:16px}
+.setup p{margin:0 0 18px;font-size:12.5px;color:var(--mut);line-height:1.7}
+.setup input{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--tx);
+  border-radius:9px;padding:12px;font-size:13px;margin-bottom:11px;outline:none;font-family:inherit}
+.setup button{width:100%;background:var(--run);border:0;color:#0b1015;font-weight:800;border-radius:9px;
+  padding:13px;font-size:14px;cursor:pointer;font-family:inherit}
+.hide{display:none!important}
+@media(max-width:820px){ .main{grid-template-columns:1fr;grid-template-rows:auto 1fr} .side{max-height:44vh} .top input{width:150px} .stats{display:none} }
+</style>
+</head>
+<body>
+
+<div class="top">
+  <div class="logo">STC <span>배송 관제</span></div>
+  <div class="stats">
+    <div class="st run"><b id="cRun">0</b>운송중</div>
+    <div class="st ok"><b id="cArr">0</b>도착</div>
+    <div class="st bad"><b id="cStale">0</b>신호끊김</div>
+  </div>
+  <div class="spacer"></div>
+  <input id="apiIn" placeholder="Apps Script Web App URL">
+  <button id="btnFit">전체보기</button>
+  <button id="btnRefresh">새로고침</button>
+  <div class="tick">갱신 <b id="tick">—</b></div>
+</div>
+
+<div class="main">
+  <aside class="side">
+    <div class="tabs">
+      <div class="tab on" data-f="active">진행중</div>
+      <div class="tab" data-f="today">오늘 전체</div>
+    </div>
+    <div class="list" id="list"><div class="empty">서버 주소를 입력하세요</div></div>
+  </aside>
+  <div style="position:relative"><div id="map"></div></div>
+</div>
+
+<div class="setup" id="setup">
+  <div class="box">
+    <h3>배송 관제 연결</h3>
+    <p>Apps Script 웹앱 URL을 입력하세요. 구글맵 타일을 쓰려면 API 키를 함께 입력합니다.
+       비워두면 OpenStreetMap으로 무료 동작합니다.</p>
+    <input id="sApi" placeholder="https://script.google.com/macros/s/.../exec">
+    <input id="sKey" placeholder="Google Maps API Key (선택)">
+    <button id="sGo">연결</button>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+'use strict';
+var Q = function(i){ return document.getElementById(i); };
+var P = new URLSearchParams(location.search);
+
+var API = P.get('api') || '';
+var GKEY = P.get('gkey') || '';
+var STALE_MIN = 10;          // 이 시간 이상 갱신 없으면 신호끊김
+var REFRESH_MS = 10000;
+
+var map, layerCtl, vLayer = {}, trailLine = null, siteLayer = null;
+var trips = [], selected = null, filter = 'active', sites = [], firstFit = true, pollTimer = null;
+
+/* ---------------- 지도 ---------------- */
+function initMap(){
+  map = L.map('map', { zoomControl:true, attributionControl:true }).setView([13.30, 101.05], 9);
+
+  var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom:19, attribution:'&copy; OpenStreetMap'
+  });
+  var carto = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    maxZoom:20, attribution:'&copy; OpenStreetMap, &copy; CARTO'
+  });
+  var sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom:19, attribution:'Esri'
+  });
+  carto.addTo(map);
+  var base = { '다크 (기본)':carto, '일반 지도':osm, '위성':sat };
+  layerCtl = L.control.layers(base, {}, { position:'topright' }).addTo(map);
+
+  if (GKEY) loadGoogle();
+}
+
+/* 구글맵 타일 — 키가 있을 때만 공식 Maps JavaScript API 로드 */
+function loadGoogle(){
+  var s1 = document.createElement('script');
+  s1.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(GKEY) + '&v=quarterly';
+  s1.onload = function(){
+    var s2 = document.createElement('script');
+    s2.src = 'https://unpkg.com/leaflet.gridlayer.googlemutant@0.14.0/dist/Leaflet.GoogleMutant.js';
+    s2.onload = function(){
+      try {
+        var g  = L.gridLayer.googleMutant({ type:'roadmap' });
+        var gh = L.gridLayer.googleMutant({ type:'hybrid' });
+        layerCtl.addBaseLayer(g,  'Google 지도');
+        layerCtl.addBaseLayer(gh, 'Google 위성');
+      } catch(e){ console.warn('GoogleMutant:', e); }
+    };
+    document.head.appendChild(s2);
+  };
+  s1.onerror = function(){ console.warn('Google Maps API 로드 실패 — OSM으로 계속합니다'); };
+  document.head.appendChild(s1);
+}
+
+function vehIcon(t){
+  var c = t._stale ? '#ff5d5d' : t.status === '도착' ? '#2dd4a7' : t.status === '완료' ? '#5a6b7a' : '#f5a524';
+  var glyph = t.status === '도착' ? '✓' : '🚚';
+  return L.divIcon({
+    className:'', iconSize:[30,30], iconAnchor:[15,15], popupAnchor:[0,-16],
+    html:'<div style="position:relative">' +
+         '<div class="veh-ico" style="background:'+c+';color:#0b1015">'+glyph+'</div>' +
+         '<div class="veh-lbl" style="border-color:'+c+'">'+esc(t.vehicleNo||'—')+'</div></div>'
+  });
+}
+
+function drawSites(){
+  if (siteLayer) map.removeLayer(siteLayer);
+  siteLayer = L.layerGroup();
+  sites.forEach(function(s){
+    var col = s.type === 'ORIGIN' ? '#4cc2ff' : '#2dd4a7';
+    L.circle([s.lat, s.lng], { radius:s.radiusM, color:col, weight:1,
+      fillColor:col, fillOpacity:.07, dashArray:'4 4' }).addTo(siteLayer);
+    L.marker([s.lat, s.lng], { icon:L.divIcon({ className:'', iconSize:[0,0],
+      html:'<div class="site-lbl" style="transform:translate(-50%,-50%);color:'+col+'">'+esc(s.name)+'</div>' })
+    }).addTo(siteLayer);
+  });
+  siteLayer.addTo(map);
+}
+
+/* ---------------- 데이터 ---------------- */
+function api(qs){
+  return fetch(API + '?' + qs, { redirect:'follow' }).then(function(r){ return r.json(); });
+}
+
+function boot(){
+  api('action=bootstrap').then(function(d){
+    if (!d.ok) throw new Error(d.error);
+    sites = d.sites || [];
+    drawSites();
+    render(d.trips || []);
+    Q('setup').classList.add('hide');
+    if (pollTimer) clearInterval(pollTimer);
+    pollTimer = setInterval(refresh, REFRESH_MS);
+  }).catch(function(e){
+    Q('list').innerHTML = '<div class="empty">연결 실패<br><span style="color:#ff5d5d">' + esc(e.message) + '</span><br><br>URL과 배포 권한(모든 사용자)을 확인하세요.</div>';
+  });
+}
+
+function refresh(){
+  var qs = filter === 'today'
+    ? 'action=trips&date=' + new Date().toISOString().slice(0,10)
+    : 'action=live';
+  api(qs).then(function(d){ if (d.ok) render(d.trips || []); }).catch(function(){});
+}
+
+function render(list){
+  trips = list.map(function(t){
+    t._stale = (t.status === '출발' || t.status === '운송중') && t.staleMin != null && t.staleMin >= STALE_MIN;
+    return t;
+  });
+  Q('tick').textContent = new Date().toTimeString().slice(0,8);
+
+  var run = 0, arr = 0, stale = 0;
+  trips.forEach(function(t){
+    if (t._stale) stale++;
+    else if (t.status === '도착') arr++;
+    else if (t.status === '출발' || t.status === '운송중') run++;
+  });
+  Q('cRun').textContent = run; Q('cArr').textContent = arr; Q('cStale').textContent = stale;
+
+  renderList();
+  renderMarkers();
+}
+
+function statusKey(t){
+  if (t._stale) return 'stale';
+  if (t.status === '도착') return 'arr';
+  if (t.status === '완료' || t.status === '종료') return 'fin';
+  return 'run';
+}
+var STL = { run:'운송중', arr:'도착', fin:'종료', stale:'신호끊김' };
+
+function renderList(){
+  var el = Q('list');
+  if (!trips.length){
+    el.innerHTML = '<div class="empty">' + (filter==='today' ? '오늘 운행 기록이 없습니다' : '진행중인 배송이 없습니다') + '</div>';
+    return;
+  }
+  el.innerHTML = trips.map(function(t){
+    var k = statusKey(t);
+    var last = t.lastAt ? t.lastAt.slice(11,16) : '—';
+    var ago = t.staleMin != null ? (t.staleMin < 1 ? '방금' : t.staleMin + '분 전') : '—';
+    return '<div class="trip s-'+k+(selected===t.tripId?' sel':'')+'" data-id="'+esc(t.tripId)+'">' +
+      '<div class="t1"><span class="veh">'+esc(t.vehicleNo||'—')+'</span>' +
+        '<span class="stt '+k+'">'+STL[k]+'</span></div>' +
+      '<div class="t2"><b>'+esc(t.doNo||'DO 없음')+'</b> · '+esc(t.customer||'')+'<br>' +
+        esc(t.originName||'STC')+' → <b>'+esc(t.destName||'—')+'</b> · '+esc(t.driverName||'')+'</div>' +
+      '<div class="t3"><span>주행 <b class="mono">'+(t.distanceKm||0)+'</b> km</span>' +
+        '<span>출발 <b class="mono">'+(t.startAt? t.startAt.slice(11,16):'—')+'</b></span>' +
+        '<span>수신 <b class="mono">'+last+'</b> ('+ago+')</span></div></div>';
+  }).join('');
+
+  Array.prototype.forEach.call(el.querySelectorAll('.trip'), function(n){
+    n.onclick = function(){ select(n.dataset.id); };
+  });
+}
+
+function renderMarkers(){
+  var seen = {};
+  var pts = [];
+  trips.forEach(function(t){
+    if (!t.lat || !t.lng) return;
+    seen[t.tripId] = 1;
+    pts.push([t.lat, t.lng]);
+    var ll = [t.lat, t.lng];
+    if (vLayer[t.tripId]) {
+      vLayer[t.tripId].setLatLng(ll).setIcon(vehIcon(t));
+    } else {
+      vLayer[t.tripId] = L.marker(ll, { icon:vehIcon(t) }).addTo(map);
+      vLayer[t.tripId].on('click', function(){ select(t.tripId); });
+    }
+    vLayer[t.tripId].bindPopup(popupHtml(t));
+  });
+  Object.keys(vLayer).forEach(function(id){
+    if (!seen[id]) { map.removeLayer(vLayer[id]); delete vLayer[id]; }
+  });
+  if (firstFit && pts.length) { fit(); firstFit = false; }
+}
+
+function popupHtml(t){
+  var g = 'https://www.google.com/maps/dir/?api=1&origin=' + t.lat + ',' + t.lng +
+          (t.destLat ? '&destination=' + t.destLat + ',' + t.destLng : '') + '&travelmode=driving';
+  var v = 'https://www.google.com/maps/search/?api=1&query=' + t.lat + ',' + t.lng;
+  return '<b>' + esc(t.vehicleNo||'') + '</b> · ' + esc(t.status||'') + '<br>' +
+    esc(t.doNo||'') + ' → ' + esc(t.destName||'') + '<br>' +
+    '기사 ' + esc(t.driverName||'—') + ' · 주행 ' + (t.distanceKm||0) + ' km<br>' +
+    '수신 ' + esc(t.lastAt||'—') + '<br>' +
+    '<a href="'+v+'" target="_blank" rel="noopener">위치 보기</a> · ' +
+    '<a href="'+g+'" target="_blank" rel="noopener">길찾기</a>';
+}
+
+function select(id){
+  selected = id;
+  renderList();
+  var t = trips.filter(function(x){ return x.tripId === id; })[0];
+  if (t && t.lat) { map.setView([t.lat, t.lng], Math.max(map.getZoom(), 13)); if (vLayer[id]) vLayer[id].openPopup(); }
+  api('action=trail&tripId=' + encodeURIComponent(id) + '&limit=600').then(function(d){
+    if (trailLine) { map.removeLayer(trailLine); trailLine = null; }
+    if (!d.ok || !d.points || d.points.length < 2) return;
+    var line = d.points.map(function(p){ return [p.lat, p.lng]; });
+    trailLine = L.layerGroup([
+      L.polyline(line, { color:'#0b1015', weight:7, opacity:.55 }),
+      L.polyline(line, { color:'#4cc2ff', weight:3, opacity:.95 }),
+      L.circleMarker(line[0], { radius:5, color:'#2dd4a7', fillColor:'#2dd4a7', fillOpacity:1 })
+        .bindTooltip('출발 ' + d.points[0].ts.slice(11,16))
+    ]).addTo(map);
+  }).catch(function(){});
+}
+
+function fit(){
+  var b = [];
+  trips.forEach(function(t){ if (t.lat && t.lng) b.push([t.lat, t.lng]); });
+  sites.forEach(function(s){ b.push([s.lat, s.lng]); });
+  if (b.length) map.fitBounds(L.latLngBounds(b).pad(0.18));
+}
+
+function esc(s){
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+    return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c];
+  });
+}
+
+/* ---------------- 이벤트 ---------------- */
+Array.prototype.forEach.call(document.querySelectorAll('.tab'), function(n){
+  n.onclick = function(){
+    document.querySelector('.tab.on').classList.remove('on');
+    n.classList.add('on'); filter = n.dataset.f; refresh();
+  };
+});
+Q('btnFit').onclick = fit;
+Q('btnRefresh').onclick = refresh;
+Q('apiIn').onchange = function(){
+  API = this.value.trim();
+  if (API) { firstFit = true; boot(); }
+};
+Q('sGo').onclick = function(){
+  API = Q('sApi').value.trim();
+  GKEY = Q('sKey').value.trim();
+  if (!API) return;
+  Q('apiIn').value = API;
+  history.replaceState(null, '', '?api=' + encodeURIComponent(API) + (GKEY ? '&gkey=' + encodeURIComponent(GKEY) : ''));
+  if (GKEY) loadGoogle();
+  boot();
+};
+
+initMap();
+if (API) { Q('apiIn').value = API; Q('setup').classList.add('hide'); boot(); }
+</script>
+</body>
+</html>
